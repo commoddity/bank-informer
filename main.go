@@ -19,7 +19,7 @@ const (
 	// Optional env vars
 	cryptoFiatConversionEnv = "CRYPTO_FIAT_CONVERSION"
 	convertCurrenciesEnv    = "CONVERT_CURRENCIES"
-	cryptoOrderEnv          = "CRYPTO_ORDER"
+	cryptoValuesEnv         = "CRYPTO_VALUES"
 )
 
 type options struct {
@@ -29,7 +29,7 @@ type options struct {
 
 	cryptoFiatConversion string
 	convertCurrencies    []string
-	cryptoOrder          []string
+	cryptoValues         []string
 }
 
 func gatherOptions() options {
@@ -55,7 +55,7 @@ func gatherOptions() options {
 		},
 		convertCurrencies:    convertCurrencies,
 		cryptoFiatConversion: env.GetString(cryptoFiatConversionEnv, "CAD"),
-		cryptoOrder:          env.GetStringSlice(cryptoOrderEnv, ""),
+		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
 	}
 }
 
@@ -73,7 +73,7 @@ func main() {
 	// Initialize logger
 	logger := log.New(log.Config{
 		CryptoFiatConversion: opts.cryptoFiatConversion,
-		CryptoOrder:          opts.cryptoOrder,
+		CryptoValues:         opts.cryptoValues,
 		ConvertCurrencies:    opts.convertCurrencies,
 	})
 

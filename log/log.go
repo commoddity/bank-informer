@@ -10,20 +10,20 @@ import (
 
 type Logger struct {
 	cryptoFiatConversion string
-	cryptoOrder          []string
+	cryptoValues         []string
 	convertCurrencies    []string
 }
 
 type Config struct {
 	CryptoFiatConversion string
-	CryptoOrder          []string
+	CryptoValues         []string
 	ConvertCurrencies    []string
 }
 
 func New(config Config) *Logger {
 	return &Logger{
 		cryptoFiatConversion: config.CryptoFiatConversion,
-		cryptoOrder:          config.CryptoOrder,
+		cryptoValues:         config.CryptoValues,
 		convertCurrencies:    config.ConvertCurrencies,
 	}
 }
@@ -96,7 +96,7 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 /* ------------ Log Funcs ------------ */
 
 func (l *Logger) DisplayLoadingBar(done chan bool) {
-	fmt.Print("🚀 Getting financial information ...\n")
+	fmt.Println("🔎 Bank Informer script is starting...")
 
 	fmt.Print("🔄 Fetching exchange rates for the following currencies:\n")
 	for _, currency := range l.convertCurrencies {
@@ -105,6 +105,13 @@ func (l *Logger) DisplayLoadingBar(done chan bool) {
 
 	fmt.Print("💱 Crypto totals will be display in both crypto and the following fiat currency:\n")
 	fmt.Printf("%s %s\n", fiatEmojis[l.cryptoFiatConversion], l.cryptoFiatConversion)
+
+	fmt.Print("💱 Crypto values will be displayed for the following cryptocurrencies:\n")
+	for _, crypto := range l.cryptoValues {
+		fmt.Printf("%s\n", crypto)
+	}
+
+	fmt.Print("🚀 Getting financial information ...\n")
 
 	for i := 0; i <= 100; i++ {
 		fmt.Printf("\r%d%% ", i) // This will print the percentage
@@ -124,7 +131,7 @@ func (l *Logger) DisplayLoadingBar(done chan bool) {
 
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
 	fmt.Println("<--------- 🔐 Crypto Balances 🔐 --------->")
-	for _, crypto := range l.cryptoOrder {
+	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
 			fmt.Printf("%s - %s @ %s%s = %s%s %s\n", crypto, formatFloat(balance), fiatSymbols[l.cryptoFiatConversion], formatFloat(fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat(balance*fiatValue), l.cryptoFiatConversion)
