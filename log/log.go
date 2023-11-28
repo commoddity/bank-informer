@@ -97,20 +97,9 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 
 func (l *Logger) DisplayLoadingBar(done chan bool) {
 	fmt.Println("🔎 Bank Informer script is starting...")
-
-	fmt.Print("🔄 Fetching exchange rates for the following currencies:\n")
-	for _, currency := range l.convertCurrencies {
-		fmt.Printf("%s %s\n", fiatEmojis[currency], currency)
-	}
-
-	fmt.Print("💱 Crypto totals will be display in both crypto and the following fiat currency:\n")
-	fmt.Printf("%s %s\n", fiatEmojis[l.cryptoFiatConversion], l.cryptoFiatConversion)
-
-	fmt.Print("💱 Crypto values will be displayed for the following cryptocurrencies:\n")
-	for _, crypto := range l.cryptoValues {
-		fmt.Printf("%s\n", crypto)
-	}
-
+	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")
+	fmt.Print("💹 Crypto totals will be displayed in both crypto and the following fiat currency: ", l.cryptoFiatConversion, "\n")
+	fmt.Print("💻 Crypto values will be displayed for the following cryptocurrencies: ", l.cryptoValues, "\n")
 	fmt.Print("🚀 Getting financial information ...\n")
 
 	for i := 0; i <= 100; i++ {

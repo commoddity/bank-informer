@@ -23,13 +23,10 @@ const (
 )
 
 type options struct {
+	logConfig      log.Config
 	covalentConfig covalent.Config
 	poktConfig     pokt.Config
 	cmcConfig      cmc.Config
-
-	cryptoFiatConversion string
-	convertCurrencies    []string
-	cryptoValues         []string
 }
 
 func gatherOptions() options {
@@ -41,7 +38,18 @@ func gatherOptions() options {
 		}
 	}
 
+	// Validate that cryptoFiatConversion is valid
+	cryptoFiatConversion := env.GetString(cryptoFiatConversionEnv, "CAD")
+	if err := log.ValidateCurrencySymbol(cryptoFiatConversion, cryptoFiatConversionEnv); err != nil {
+		panic(err)
+	}
+
 	return options{
+		logConfig: log.Config{
+			ConvertCurrencies:    convertCurrencies,
+			CryptoFiatConversion: cryptoFiatConversion,
+			CryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
+		},
 		covalentConfig: covalent.Config{
 			APIKey:           env.MustGetString(covalentAPIKeyEnv),
 			EthWalletAddress: env.MustGetString(ethWalletAddressEnv),
@@ -53,9 +61,6 @@ func gatherOptions() options {
 		cmcConfig: cmc.Config{
 			CmcAPIKey: env.MustGetString(cmcAPIKeyEnv),
 		},
-		convertCurrencies:    convertCurrencies,
-		cryptoFiatConversion: env.GetString(cryptoFiatConversionEnv, "CAD"),
-		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
 	}
 }
 
@@ -71,17 +76,11 @@ func main() {
 	opts := gatherOptions()
 
 	// Initialize logger
-	logger := log.New(log.Config{
-		CryptoFiatConversion: opts.cryptoFiatConversion,
-		CryptoValues:         opts.cryptoValues,
-		ConvertCurrencies:    opts.convertCurrencies,
-	})
-
-	// Create a channel to signal when DisplayLoadingBar is done
-	done := make(chan bool)
+	logger := log.New(opts.logConfig)
 
 	// Start a goroutine to display a 4 second loading bar while fetching financial information
-	go logger.DisplayLoadingBar(done)
+	loadingBarDone := make(chan bool)
+	go logger.DisplayLoadingBar(loadingBarDone)
 
 	// Create a Covalent client
 	covalentClient := covalent.NewClient(opts.covalentConfig, httpClient)
@@ -111,7 +110,7 @@ func main() {
 	exchangeRates := make(map[string]map[string]float64)
 
 	// For each currency in the list of currencies to convert
-	for _, convertCurrency := range opts.convertCurrencies {
+	for _, convertCurrency := range opts.logConfig.ConvertCurrencies {
 		// Retrieve and store the exchange rates for the current currency
 		currencyExchangeRates, err := cmcClient.GetExchangeRates(balances, convertCurrency)
 		if err != nil {
@@ -126,7 +125,7 @@ func main() {
 	fiatValues := cmcClient.GetFiatValues(balances, exchangeRates)
 
 	// Wait for DisplayLoadingBar to finish
-	<-done
+	<-loadingBarDone
 
 	// Log the balances, fiat values, and exchange rates
 	logger.LogBalances(balances, fiatValues, exchangeRates)

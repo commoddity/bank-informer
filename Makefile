@@ -16,4 +16,4 @@ init-pre-commit:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.0;
 	go install -v github.com/go-critic/go-critic/cmd/gocritic@v0.6.5;
 	python3 pre-commit-2.20.0.pyz run --all-files;
-	rm pre-commit-2.20.0.pyz.*;
+	-rm -f pre-commit-2.20.0.pyz pre-commit-2.20.0.pyz.*;
