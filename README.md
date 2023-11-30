@@ -4,10 +4,20 @@
 
 Bank Informer is a Go-based application that retrieves and logs the balances of Ethereum (ETH) and Pocket Network (POKT) wallets. It fetches the exchange rates for a list of currencies and calculates the fiat values for each balance. The balances, fiat values, and exchange rates are then logged.
 
-Current works for the following tokens:
-`USDC, ETH, POKT`
+Currently works for the following tokens: `USDC, ETH, POKT`
 
-Pull requests welcome to support additional ERC20 tokens.
+**Pull requests welcome to support additional ERC20 tokens.**
+
+<p align="center">
+<a href="https://portal.grove.city/">
+<img src=".github/grove_logo.png" alt="Grove Logo" title="Uses the Grove Portal for RPC">
+<br>
+Uses the Grove Portal for RPC.
+<br>
+</a>
+
+</p>
+
 
 ## Environment Variables
 
