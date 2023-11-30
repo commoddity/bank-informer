@@ -20,8 +20,8 @@ The application requires several environment variables to function correctly. Th
 
 There are also several optional environment variables:
 
-- `CRYPTO_FIAT_CONVERSION`: The fiat currency to convert the crypto balances to. Defaults to "CAD".
-- `CONVERT_CURRENCIES`: A comma-separated list of fiat currencies to fetch exchange rates for. Defaults to "CAD".
+- `CRYPTO_FIAT_CONVERSION`: The fiat currency to convert the crypto balances to. Defaults to "USD".
+- `CONVERT_CURRENCIES`: A comma-separated list of fiat currencies to fetch exchange rates for. Defaults to "USD".
 - `CRYPTO_VALUES`: A comma-separated list of cryptocurrencies to display values for. Defaults to "USDC,ETH,POKT".
 
 These environment variables can be set in a `.env` file in the root directory of the project. This file is ignored by Git.
@@ -46,8 +46,8 @@ GROVE_PORTAL_APP_ID=your_GROVE_PORTAL_APP_ID
 POKT_WALLET_ADDRESS=your_pokt_wallet_address
 CMC_API_KEY=your_coinmarketcap_api_key
 
-CRYPTO_FIAT_CONVERSION=CAD,EUR
-CONVERT_CURRENCIES=CAD
+CRYPTO_FIAT_CONVERSION=USD,EUR
+CONVERT_CURRENCIES=USD
 CRYPTO_VALUES=USDC,ETH,POKT
 ```
 

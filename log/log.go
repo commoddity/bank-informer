@@ -48,7 +48,6 @@ var (
 		"IDR": "Rp", // Indonesian Rupiah symbol
 		"MXN": "$",  // Mexican Peso symbol
 		"ARS": "$",  // Argentine Peso symbol
-		"ILS": "₪",  // Israeli New Shekel symbol
 		"MYR": "RM", // Malaysian Ringgit symbol
 		"PHP": "₱",  // Philippine Peso symbol
 		"PLN": "zł", // Polish Złoty symbol
@@ -62,27 +61,26 @@ var (
 		"CAD": "🦆", // Duck symbol for Canada
 		"USD": "🦅", // Eagle symbol for United States
 		"JPY": "🦊", // Fox symbol for Japan
-		"GBP": "🦁", // Lion symbol for Great Britain
+		"GBP": "🦡", // Badger symbol for Great Britain
 		"AUD": "🦘", // Kangaroo symbol for Australia
 		"CHF": "🐄", // Cow symbol for Switzerland
 		"CNY": "🐼", // Panda symbol for China
 		"SEK": "🦌", // Deer symbol for Sweden
 		"NZD": "🥝", // Kiwi bird symbol for New Zealand
-		"ZAR": "🦁", // Lion symbol for South Africa
-		"INR": "🐯", // Tiger symbol for India
+		"ZAR": "🦓", // Zebra symbol for South Africa
+		"INR": "🐘", // Elephant symbol for India
 		"RUB": "🐻", // Bear symbol for Russia
-		"BRL": "🐆", // Jaguar symbol for Brazil
-		"KRW": "🐯", // Tiger symbol for South Korea
-		"IDR": "🐉", // Dragon symbol for Indonesia
-		"MXN": "🦅", // Eagle symbol for Mexico
-		"ARS": "🐆", // Jaguar symbol for Argentina
-		"ILS": "💣", // Bomb symbol for Israel
-		"MYR": "🐅", // Tiger symbol for Malaysia
-		"PHP": "🦅", // Eagle symbol for the Philippines
-		"PLN": "🦅", // Eagle symbol for Poland
-		"THB": "🐘", // Elephant symbol for Thailand
-		"TRY": "🐺", // Wolf symbol for Turkey
-		"VND": "🐉", // Dragon symbol for Vietnam
+		"BRL": "🦜", // Parrot symbol for Brazil
+		"KRW": "🐕", // Dog symbol for South Korea
+		"IDR": "🦎", // Lizard symbol for Indonesia
+		"MXN": "🐺", // Wolf symbol for Mexico
+		"ARS": "🦙", // Llama symbol for Argentina
+		"MYR": "🦋", // Butterfly symbol for Malaysia
+		"PHP": "🦈", // Shark symbol for the Philippines
+		"PLN": "🦉", // Owl symbol for Poland
+		"THB": "🐅", // Tiger symbol for Thailand
+		"TRY": "🐐", // Goat symbol for Turkey
+		"VND": "🐊", // Crocodile symbol for Vietnam
 	}
 )
 

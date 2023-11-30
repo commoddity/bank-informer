@@ -19,6 +19,10 @@ const (
 	cryptoFiatConversionEnv = "CRYPTO_FIAT_CONVERSION"
 	convertCurrenciesEnv    = "CONVERT_CURRENCIES"
 	cryptoValuesEnv         = "CRYPTO_VALUES"
+	// Default currency values
+	defaultConvertCurrencies    = "USD"
+	defaultCryptoFiatConversion = "USD"
+	defaultCryptoValues         = "USDC,ETH,POKT"
 )
 
 type options struct {
@@ -33,14 +37,14 @@ type options struct {
 
 func gatherOptions() options {
 	// Validate that all converted currencies are valid
-	convertCurrencies := env.GetStringSlice(convertCurrenciesEnv, "CAD")
+	convertCurrencies := env.GetStringSlice(convertCurrenciesEnv, defaultConvertCurrencies)
 	for _, currency := range convertCurrencies {
 		if err := log.ValidateCurrencySymbol(currency, convertCurrenciesEnv); err != nil {
 			panic(err)
 		}
 	}
 	// Validate that cryptoFiatConversion is valid
-	cryptoFiatConversion := env.GetString(cryptoFiatConversionEnv, "CAD")
+	cryptoFiatConversion := env.GetString(cryptoFiatConversionEnv, defaultCryptoFiatConversion)
 	if err := log.ValidateCurrencySymbol(cryptoFiatConversion, cryptoFiatConversionEnv); err != nil {
 		panic(err)
 	}
@@ -70,7 +74,7 @@ func gatherOptions() options {
 
 		cryptoFiatConversion: cryptoFiatConversion,
 		convertCurrencies:    convertCurrencies,
-		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
+		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, defaultCryptoValues),
 	}
 }
 
