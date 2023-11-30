@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	portalAppURL = "https://eth-mainnet.gateway.pokt.network/v1/%s"
+	ethGrovePortalURL = "https://eth-mainnet.rpc.grove.city/v1/%s"
 )
 
 var erc20TokenConfig = map[string]func(*JsonRPCRequest, string) float64{
@@ -62,7 +62,7 @@ type Client struct {
 }
 
 func NewClient(config Config, httpClient *http.Client) *Client {
-	url := fmt.Sprintf(portalAppURL, config.PortalAppID)
+	url := fmt.Sprintf(ethGrovePortalURL, config.PortalAppID)
 
 	return &Client{
 		url:        url,

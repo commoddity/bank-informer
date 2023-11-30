@@ -9,7 +9,7 @@ import (
 	"github.com/pokt-foundation/pocket-go/provider"
 )
 
-const poktURL = "https://mainnet.gateway.pokt.network/v1/%s"
+const poktGrovePortalURL = "https://mainnet.rpc.grove.city/v1/%s"
 
 type Config struct {
 	PortalAppID       string
@@ -22,7 +22,7 @@ type Client struct {
 }
 
 func NewClient(config Config, httpClient *http.Client) *Client {
-	url := fmt.Sprintf(poktURL, config.PortalAppID)
+	url := fmt.Sprintf(poktGrovePortalURL, config.PortalAppID)
 
 	return &Client{
 		Config:   config,
