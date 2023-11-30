@@ -1,6 +1,7 @@
 package pokt
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -27,6 +28,16 @@ func NewClient(config Config, httpClient *http.Client) *Client {
 		Config:   config,
 		Provider: provider.NewProvider(url, []string{url}),
 	}
+}
+
+func ValidatePortalAppID(id string) error {
+	if len(id) != 8 && len(id) != 24 {
+		return fmt.Errorf("invalid Portal App ID: %s", id)
+	}
+	if _, err := hex.DecodeString(id); err != nil {
+		return fmt.Errorf("invalid Portal App ID: %s", id)
+	}
+	return nil
 }
 
 func (p *Client) GetWalletBalance(balances map[string]float64) error {

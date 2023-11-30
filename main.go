@@ -3,17 +3,16 @@ package main
 import (
 	"github.com/commoddity/bank-informer/client"
 	"github.com/commoddity/bank-informer/cmc"
-	"github.com/commoddity/bank-informer/covalent"
 	"github.com/commoddity/bank-informer/env"
+	"github.com/commoddity/bank-informer/eth"
 	"github.com/commoddity/bank-informer/log"
 	"github.com/commoddity/bank-informer/pokt"
 )
 
 const (
 	// Required env vars
-	covalentAPIKeyEnv    = "COVALENT_API_KEY"
+	grovePortalAppID     = "GROVE_PORTAL_APP_ID"
 	ethWalletAddressEnv  = "ETH_WALLET_ADDRESS"
-	poktPortalAppID      = "POKT_PORTAL_APP_ID"
 	poktWalletAddressEnv = "POKT_WALLET_ADDRESS"
 	cmcAPIKeyEnv         = "CMC_API_KEY"
 	// Optional env vars
@@ -23,10 +22,13 @@ const (
 )
 
 type options struct {
-	logConfig      log.Config
-	covalentConfig covalent.Config
-	poktConfig     pokt.Config
-	cmcConfig      cmc.Config
+	ethConfig  eth.Config
+	poktConfig pokt.Config
+	cmcConfig  cmc.Config
+
+	cryptoFiatConversion string
+	convertCurrencies    []string
+	cryptoValues         []string
 }
 
 func gatherOptions() options {
@@ -37,30 +39,38 @@ func gatherOptions() options {
 			panic(err)
 		}
 	}
-
 	// Validate that cryptoFiatConversion is valid
 	cryptoFiatConversion := env.GetString(cryptoFiatConversionEnv, "CAD")
 	if err := log.ValidateCurrencySymbol(cryptoFiatConversion, cryptoFiatConversionEnv); err != nil {
 		panic(err)
 	}
+	// Validate that Grove Portal App ID is valid
+	grovePortalAppID := env.MustGetString(grovePortalAppID)
+	if err := pokt.ValidatePortalAppID(grovePortalAppID); err != nil {
+		panic(err)
+	}
+	// Validate that ETH wallet address is valid
+	ethWalletAddress := env.MustGetString(ethWalletAddressEnv)
+	if err := eth.ValidateETHWalletAddress(ethWalletAddress); err != nil {
+		panic(err)
+	}
 
 	return options{
-		logConfig: log.Config{
-			ConvertCurrencies:    convertCurrencies,
-			CryptoFiatConversion: cryptoFiatConversion,
-			CryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
-		},
-		covalentConfig: covalent.Config{
-			APIKey:           env.MustGetString(covalentAPIKeyEnv),
-			EthWalletAddress: env.MustGetString(ethWalletAddressEnv),
+		ethConfig: eth.Config{
+			PortalAppID:      grovePortalAppID,
+			ETHWalletAddress: ethWalletAddress,
 		},
 		poktConfig: pokt.Config{
-			PortalAppID:       env.MustGetString(poktPortalAppID),
+			PortalAppID:       grovePortalAppID,
 			POKTWalletAddress: env.MustGetString(poktWalletAddressEnv),
 		},
 		cmcConfig: cmc.Config{
 			CmcAPIKey: env.MustGetString(cmcAPIKeyEnv),
 		},
+
+		cryptoFiatConversion: cryptoFiatConversion,
+		convertCurrencies:    convertCurrencies,
+		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, "USDC,ETH,POKT"),
 	}
 }
 
@@ -69,38 +79,40 @@ func gatherOptions() options {
 // the fiat values for each balance. The balances, fiat values, and exchange rates
 // are then logged for further use.
 func main() {
-	// Initialize HTTP client
-	httpClient := client.New()
 
 	// Gather options from env vars
 	opts := gatherOptions()
 
 	// Initialize logger
-	logger := log.New(opts.logConfig)
+	logger := log.New(log.Config{
+		CryptoFiatConversion: opts.cryptoFiatConversion,
+		ConvertCurrencies:    opts.convertCurrencies,
+		CryptoValues:         opts.cryptoValues,
+	})
 
 	// Start a goroutine to display a 4 second loading bar while fetching financial information
 	loadingBarDone := make(chan bool)
 	go logger.DisplayLoadingBar(loadingBarDone)
 
-	// Create a Covalent client
-	covalentClient := covalent.NewClient(opts.covalentConfig, httpClient)
-
-	// Create a POKT client
-	poktClient := pokt.NewClient(opts.poktConfig, httpClient)
-
-	// Create a CMC client
-	cmcClient := cmc.NewClient(opts.cmcConfig, httpClient)
-
 	// Create a map to store balances
 	balances := make(map[string]float64)
+	for _, crypto := range opts.cryptoValues {
+		balances[crypto] = 0
+	}
 
-	// Retrieve and store ETH wallet balance from Covalent
-	err := covalentClient.GetEthWalletBalance(balances)
+	// Create clients
+	httpClient := client.New()
+	ethClient := eth.NewClient(opts.ethConfig, httpClient)
+	poktClient := pokt.NewClient(opts.poktConfig, httpClient)
+	cmcClient := cmc.NewClient(opts.cmcConfig, httpClient)
+
+	// Retrieve and store ERC20 wallet balances through Grove Portal
+	err := ethClient.GetETHWalletBalances(balances)
 	if err != nil {
 		panic(err)
 	}
 
-	// Retrieve and store POKT wallet balance from POKT Provider
+	// Retrieve and store POKT wallet balance through Grove Portal
 	err = poktClient.GetWalletBalance(balances)
 	if err != nil {
 		panic(err)
@@ -110,7 +122,7 @@ func main() {
 	exchangeRates := make(map[string]map[string]float64)
 
 	// For each currency in the list of currencies to convert
-	for _, convertCurrency := range opts.logConfig.ConvertCurrencies {
+	for _, convertCurrency := range opts.convertCurrencies {
 		// Retrieve and store the exchange rates for the current currency
 		currencyExchangeRates, err := cmcClient.GetExchangeRates(balances, convertCurrency)
 		if err != nil {

@@ -103,3 +103,39 @@ func Get[T any](endpoint string, header http.Header, httpClient *http.Client) (T
 
 	return data, nil
 }
+
+// Generic HTTP POST request
+func Post[T any](endpoint string, header http.Header, postData []byte, httpClient *http.Client) (T, error) {
+	var data T
+
+	// Create a new request
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(postData))
+	if err != nil {
+		return data, err
+	}
+
+	// Set headers
+	req.Header = header
+
+	// Send the request
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return data, err
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK {
+		code := resp.StatusCode
+		text := http.StatusText(code)
+		return data, fmt.Errorf("%s. %d %s", errResponseNotOK, code, text)
+	}
+
+	// Decode response body
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
