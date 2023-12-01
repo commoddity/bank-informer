@@ -73,7 +73,7 @@ var (
 		"BRL": "🦜", // Parrot symbol for Brazil
 		"KRW": "🐕", // Dog symbol for South Korea
 		"IDR": "🦎", // Lizard symbol for Indonesia
-		"MXN": "🐺", // Wolf symbol for Mexico
+		"MXN": "🦂", // Scorpion symbol for Mexico
 		"ARS": "🦙", // Llama symbol for Argentina
 		"MYR": "🦋", // Butterfly symbol for Malaysia
 		"PHP": "🦈", // Shark symbol for the Philippines

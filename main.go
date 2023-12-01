@@ -7,6 +7,7 @@ import (
 	"github.com/commoddity/bank-informer/eth"
 	"github.com/commoddity/bank-informer/log"
 	"github.com/commoddity/bank-informer/pokt"
+	"github.com/commoddity/bank-informer/setup"
 )
 
 const (
@@ -83,6 +84,8 @@ func gatherOptions() options {
 // the fiat values for each balance. The balances, fiat values, and exchange rates
 // are then logged for further use.
 func main() {
+	// Setup .env file if it doesn't exist
+	setup.Start()
 
 	// Gather options from env vars
 	opts := gatherOptions()
