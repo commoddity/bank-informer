@@ -5,9 +5,6 @@ build-linux:
 build-mac:
 	GOOS=darwin GOARCH=amd64 go build -o bin/main main.go
 
-
-
-
 # This target install pre-commit to the repo and should be run only once, after cloning the repo for the first time.
 init-pre-commit:
 	wget https://github.com/pre-commit/pre-commit/releases/download/v2.20.0/pre-commit-2.20.0.pyz;

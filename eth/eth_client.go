@@ -25,6 +25,16 @@ var erc20TokenConfig = map[string]func(*JsonRPCRequest, string) float64{
 		requestBody.Params = json.RawMessage(fmt.Sprintf(`["%s", "latest"]`, address))
 		return 1e18
 	},
+	"WPOKT": func(requestBody *JsonRPCRequest, address string) float64 {
+		requestBody.Method = "eth_call"
+		requestBody.Params = json.RawMessage(fmt.Sprintf(`[{"to": "0x67F4C72a50f8Df6487720261E188F2abE83F57D7", "data": "0x70a08231000000000000000000000000%s"}, "latest"]`, strings.TrimPrefix(address, "0x")))
+		return 1e6
+	},
+	"WBTC": func(requestBody *JsonRPCRequest, address string) float64 {
+		requestBody.Method = "eth_call"
+		requestBody.Params = json.RawMessage(fmt.Sprintf(`[{"to": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", "data": "0x70a08231000000000000000000000000%s"}, "latest"]`, strings.TrimPrefix(address, "0x")))
+		return 1e8
+	},
 }
 
 type (
