@@ -82,6 +82,14 @@ var (
 		"TRY": "🐐", // Goat symbol for Turkey
 		"VND": "🐊", // Crocodile symbol for Vietnam
 	}
+
+	cryptoRoundValues = map[string]int{
+		"POKT":  0,
+		"WPOKT": 0,
+		"USDC":  2,
+		"ETH":   6,
+		"WBTC":  6,
+	}
 )
 
 func ValidateCurrencySymbol(currency, envVar string) error {
@@ -121,21 +129,26 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
-			fmt.Printf("%s - %s @ %s%s = %s%s %s\n", crypto, formatFloat(balance), fiatSymbols[l.cryptoFiatConversion], formatFloat(fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat(balance*fiatValue), l.cryptoFiatConversion)
+			fmt.Printf("%s - %s @ %s%s = %s%s %s\n", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", balance*fiatValue), l.cryptoFiatConversion)
 		}
 	}
 
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
 	for _, fiat := range l.convertCurrencies {
 		if balance, ok := fiatValues[fiat]; ok {
-			fmt.Printf("%s %s - %s%s\n", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFloat(balance))
+			fmt.Printf("%s %s - %s%s\n", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFloat("", balance))
 		}
 	}
 
 	fmt.Print("\nFin.\n")
 }
 
-func formatFloat(num float64) string {
+func formatFloat(crypto string, num float64) string {
+	roundValue, ok := cryptoRoundValues[crypto]
+	if !ok {
+		roundValue = 2 // default to 2 decimal places if crypto not found in map
+	}
 	p := message.NewPrinter(language.English)
-	return p.Sprintf("%.2f", num)
+	format := fmt.Sprintf("%%.%df", roundValue)
+	return p.Sprintf(format, num)
 }
