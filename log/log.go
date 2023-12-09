@@ -114,7 +114,7 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 /* ------------ Log Funcs ------------ */
 
 func (l *Logger) DisplayLoadingBar(done chan bool) {
-	fmt.Println("🔎 Bank Informer script is starting...")
+	fmt.Println("🔎 Bank Informer script is starting at", time.Now().Format("02-01-2006 15:04:05"))
 	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")
 	fmt.Print("💹 Crypto totals will be displayed in both crypto and the following fiat currency: ", l.cryptoFiatConversion, "\n")
 	fmt.Print("💻 Crypto values will be displayed for the following cryptocurrencies: ", l.cryptoValues, "\n")
