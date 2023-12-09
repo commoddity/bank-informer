@@ -6,12 +6,15 @@ import (
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+
+	"github.com/commoddity/bank-informer/persistence"
 )
 
 type Logger struct {
 	cryptoFiatConversion string
 	cryptoValues         []string
 	convertCurrencies    []string
+	persistence          *persistence.Persistence
 }
 
 type Config struct {
@@ -20,13 +23,22 @@ type Config struct {
 	ConvertCurrencies    []string
 }
 
-func New(config Config) *Logger {
+// Modified New function to include Persistence
+func New(config Config, persistence *persistence.Persistence) *Logger {
 	return &Logger{
 		cryptoFiatConversion: config.CryptoFiatConversion,
 		cryptoValues:         config.CryptoValues,
 		convertCurrencies:    config.ConvertCurrencies,
+		persistence:          persistence,
 	}
 }
+
+const (
+	colorRed   = "\033[31m"
+	colorGreen = "\033[32m"
+	colorBlue  = "\033[34m"
+	colorReset = "\033[0m"
+)
 
 var (
 	fiatSymbols = map[string]string{
@@ -125,11 +137,42 @@ func (l *Logger) DisplayLoadingBar(done chan bool) {
 }
 
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
+	currentDate := time.Now().Format("02-01-2006") // format: DD-MM-YYYY
+	previousDate := time.Now().AddDate(0, 0, -1).Format("02-01-2006")
+
 	fmt.Println("<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
-			fmt.Printf("%s - %s @ %s%s = %s%s %s\n", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", balance*fiatValue), l.cryptoFiatConversion)
+			fiatBalance := balance * fiatValue
+
+			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", balance*fiatValue), l.cryptoFiatConversion)
+
+			// Fetch average values from the previous day
+			previousKey := fmt.Sprintf("%s-%s", crypto, previousDate)
+			avgValues, err := l.persistence.GetAverageCryptoValues(previousKey)
+			if err != nil {
+				fmt.Printf(" %s(No data)%s\n", colorBlue, colorReset)
+			} else {
+				difference := fiatValue - avgValues.FiatValue
+				color := colorGreen
+				if difference < 0 {
+					color = colorRed
+				}
+				fmt.Printf(" %s(%s%s)\n", color, fiatSymbols[l.cryptoFiatConversion]+formatFloat("", difference), colorReset)
+			}
+
+			key := fmt.Sprintf("%s-%s", crypto, currentDate)
+			cryptoVal := persistence.CryptoValues{
+				CryptoBalance: balance,
+				FiatValue:     fiatValue,
+				FiatBalance:   fiatBalance,
+			}
+
+			err = l.persistence.WriteCryptoValues(key, cryptoVal)
+			if err != nil {
+				fmt.Printf("Error writing crypto values to database: %s\n", err)
+			}
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"github.com/commoddity/bank-informer/env"
 	"github.com/commoddity/bank-informer/eth"
 	"github.com/commoddity/bank-informer/log"
+	"github.com/commoddity/bank-informer/persistence"
 	"github.com/commoddity/bank-informer/pokt"
 	"github.com/commoddity/bank-informer/setup"
 )
@@ -24,6 +25,8 @@ const (
 	defaultConvertCurrencies    = "USD"
 	defaultCryptoFiatConversion = "USD"
 	defaultCryptoValues         = "USDC,ETH,POKT"
+	// BadgerDB path
+	dbPath = "./db"
 )
 
 type options struct {
@@ -34,6 +37,8 @@ type options struct {
 	cryptoFiatConversion string
 	convertCurrencies    []string
 	cryptoValues         []string
+
+	persistenceDBPath string
 }
 
 func gatherOptions() options {
@@ -76,6 +81,8 @@ func gatherOptions() options {
 		cryptoFiatConversion: cryptoFiatConversion,
 		convertCurrencies:    convertCurrencies,
 		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, defaultCryptoValues),
+
+		persistenceDBPath: dbPath,
 	}
 }
 
@@ -90,12 +97,15 @@ func main() {
 	// Gather options from env vars
 	opts := gatherOptions()
 
+	persistence := persistence.NewPersistence(opts.persistenceDBPath)
+	defer persistence.Close()
+
 	// Initialize logger
 	logger := log.New(log.Config{
 		CryptoFiatConversion: opts.cryptoFiatConversion,
 		ConvertCurrencies:    opts.convertCurrencies,
 		CryptoValues:         opts.cryptoValues,
-	})
+	}, persistence)
 
 	// Start a goroutine to display a 4 second loading bar while fetching financial information
 	loadingBarDone := make(chan bool)

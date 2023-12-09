@@ -36,3 +36,6 @@ pre-commit-2.20.0.pyz.*
 
 # DB Dumps
 *.tar
+
+db
+db/*
