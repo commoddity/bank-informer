@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/commoddity/bank-informer/client"
 	"github.com/commoddity/bank-informer/cmc"
+	"github.com/commoddity/bank-informer/csv"
 	"github.com/commoddity/bank-informer/env"
 	"github.com/commoddity/bank-informer/eth"
 	"github.com/commoddity/bank-informer/log"
@@ -158,4 +159,10 @@ func main() {
 
 	// Log the balances, fiat values, and exchange rates
 	logger.LogBalances(balances, fiatValues, exchangeRates)
+
+	// Write the balances, fiat values, and exchange rates to a CSV file
+	err = csv.WriteCryptoValuesToCSV(persistence, opts.cryptoValues)
+	if err != nil {
+		panic(err)
+	}
 }
