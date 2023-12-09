@@ -165,4 +165,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	// Clear BadgerDB of old entries (older than 72 hours)
+	err = persistence.ClearOldEntries()
+	if err != nil {
+		panic(err)
+	}
 }

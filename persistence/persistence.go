@@ -5,9 +5,13 @@ import (
 	"encoding/gob"
 	"fmt"
 	"log"
+	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
 )
+
+// Set a TTL of 72 hours for all data
+const ttl = 72 * time.Hour
 
 type (
 	Persistence struct {
@@ -18,6 +22,7 @@ type (
 
 		GetAverageCryptoValues(key string) (CryptoValues, error)
 		WriteCryptoValues(key string, value CryptoValues) error
+		ClearOldEntries() error
 	}
 )
 
@@ -101,7 +106,9 @@ func (p *Persistence) WriteCryptoValues(key string, value CryptoValues) error {
 			return err
 		}
 
-		return txn.Set([]byte(key), data)
+		// Use SetEntry to write data with TTL
+		e := badger.NewEntry([]byte(key), data).WithTTL(ttl)
+		return txn.SetEntry(e)
 	})
 }
 
@@ -176,4 +183,24 @@ func (p *Persistence) ReadAll() (map[string]CryptoValues, error) {
 	})
 
 	return averages, err
+}
+
+func (p *Persistence) ClearOldEntries() error {
+	return p.DB.Update(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			expiration := time.Unix(int64(item.ExpiresAt()), 0)
+			if time.Since(expiration) > ttl {
+				err := txn.Delete(item.Key())
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
