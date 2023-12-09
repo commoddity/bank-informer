@@ -24,6 +24,7 @@ func WriteCryptoValuesToCSV(p *persistence.Persistence, cryptos []string) error 
 	hasHeaders := len(records) > 0 && records[0][0] == "date"
 
 	updated := false
+	totalFiatBalance := 0.0
 	for _, crypto := range cryptos {
 		key := fmt.Sprintf("%s-%s", crypto, currentDate)
 		avgValues, err := p.GetAverageCryptoValues(key)
@@ -39,8 +40,20 @@ func WriteCryptoValuesToCSV(p *persistence.Persistence, cryptos []string) error 
 			fmt.Sprintf("%f", avgValues.FiatBalance),
 		}
 
-		updated, records = updateOrAddRecord(records, record)
+		totalFiatBalance += avgValues.FiatBalance
+
+		_, records = updateOrAddRecord(records, record)
 	}
+
+	// Add total row
+	totalRow := []string{
+		currentDate,
+		"TOTAL",
+		"",
+		"",
+		fmt.Sprintf("%f", totalFiatBalance),
+	}
+	updated, records = updateOrAddRecord(records, totalRow)
 
 	// Rewrite the CSV file only if updated
 	if updated {
