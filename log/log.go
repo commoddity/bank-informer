@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"golang.org/x/text/language"
@@ -146,20 +147,35 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
 			fiatBalance := balance * fiatValue
 
-			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", balance*fiatValue), l.cryptoFiatConversion)
+			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatBalance), l.cryptoFiatConversion)
 
 			// Fetch average values from the previous day
 			previousKey := fmt.Sprintf("%s-%s", crypto, previousDate)
 			avgValues, err := l.persistence.GetAverageCryptoValues(previousKey)
 			if err != nil {
-				fmt.Printf(" %s(No data)%s\n", colorBlue, colorReset)
+				fmt.Printf(" %sNo data%s\n", colorBlue, colorReset)
 			} else {
-				difference := fiatValue - avgValues.FiatValue
-				color := colorGreen
-				if difference < 0 {
-					color = colorRed
+				const tolerance = 0.01
+				difference := fiatBalance - avgValues.FiatBalance
+				if math.Abs(difference) < tolerance {
+					difference = 0
 				}
-				fmt.Printf(" %s(%s%s)\n", color, fiatSymbols[l.cryptoFiatConversion]+formatFloat("", difference), colorReset)
+
+				var color string
+				switch {
+				case difference < 0:
+					color = colorRed
+				case difference > 0:
+					color = colorGreen
+				default:
+					color = colorBlue
+				}
+
+				if difference == 0 {
+					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
+				} else {
+					fmt.Printf(" %s%s%s\n", color, formatFloat("", difference), colorReset)
+				}
 			}
 
 			key := fmt.Sprintf("%s-%s", crypto, currentDate)
