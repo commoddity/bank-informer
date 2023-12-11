@@ -115,7 +115,7 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 /* ------------ Log Funcs ------------ */
 
 func (l *Logger) DisplayLoadingBar(done chan bool) {
-	fmt.Println("🔎 Bank Informer script is starting at", time.Now().Format("02-01-2006 15:04:05"))
+	fmt.Println("🔎 Bank Informer script is starting at", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")
 	fmt.Print("💹 Crypto totals will be displayed in both crypto and the following fiat currency: ", l.cryptoFiatConversion, "\n")
 	fmt.Print("💻 Crypto values will be displayed for the following cryptocurrencies: ", l.cryptoValues, "\n")
@@ -138,8 +138,8 @@ func (l *Logger) DisplayLoadingBar(done chan bool) {
 }
 
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
-	currentDate := time.Now().Format("02-01-2006") // format: DD-MM-YYYY
-	previousDate := time.Now().AddDate(0, 0, -1).Format("02-01-2006")
+	currentDate := time.Now().Format("2006-01-02") // format: YYYY-MM-DD
+	previousDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
 	fmt.Println("<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {

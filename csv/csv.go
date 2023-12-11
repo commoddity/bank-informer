@@ -12,7 +12,7 @@ import (
 const defaultFilename = "crypto_values.csv"
 
 func WriteCryptoValuesToCSV(p *persistence.Persistence, cryptos []string) error {
-	currentDate := time.Now().Format("02-01-2006")
+	currentDate := time.Now().Format("2006-01-02")
 
 	// Read existing records
 	records, err := readCSV(defaultFilename)
