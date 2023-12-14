@@ -141,6 +141,8 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	currentDate := time.Now().Format("2006-01-02") // format: YYYY-MM-DD
 	previousDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 
+	fiatTotal := 0.0
+
 	fmt.Println("<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
@@ -155,27 +157,16 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 			if err != nil {
 				fmt.Printf(" %sNo data%s\n", colorBlue, colorReset)
 			} else {
-				const tolerance = 0.01
 				difference := fiatBalance - avgValues.FiatBalance
-				if math.Abs(difference) < tolerance {
-					difference = 0
-				}
-
-				var color string
-				switch {
-				case difference < 0:
-					color = colorRed
-				case difference > 0:
-					color = colorGreen
-				default:
-					color = colorBlue
-				}
+				color := getColorForDifference(difference)
 
 				if difference == 0 {
 					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
 				} else {
 					fmt.Printf(" %s%s%s\n", color, formatFloat("", difference), colorReset)
 				}
+
+				fiatTotal += avgValues.FiatBalance
 			}
 
 			key := fmt.Sprintf("%s-%s", crypto, currentDate)
@@ -193,13 +184,32 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	}
 
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
+	defaultFiatBalance := fiatValues[l.cryptoFiatConversion]
+	differenceInDefaultFiat := defaultFiatBalance - fiatTotal
+
 	for _, fiat := range l.convertCurrencies {
 		if balance, ok := fiatValues[fiat]; ok {
-			fmt.Printf("%s %s - %s%s\n", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFloat("", balance))
+			fmt.Printf("%s %s - %s%s", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFloat("", balance))
+
+			if fiat == l.cryptoFiatConversion {
+				color := getColorForDifference(differenceInDefaultFiat)
+				if differenceInDefaultFiat == 0 {
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], "0.00", colorReset)
+				} else {
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFloat("", differenceInDefaultFiat), colorReset)
+				}
+			} else {
+				exchangeRate := balance / defaultFiatBalance
+				difference := differenceInDefaultFiat * exchangeRate
+				color := getColorForDifference(difference)
+				if difference == 0 {
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], "0.00", colorReset)
+				} else {
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFloat("", difference), colorReset)
+				}
+			}
 		}
 	}
-
-	fmt.Print("\nFin.\n")
 }
 
 func formatFloat(crypto string, num float64) string {
@@ -210,4 +220,23 @@ func formatFloat(crypto string, num float64) string {
 	p := message.NewPrinter(language.English)
 	format := fmt.Sprintf("%%.%df", roundValue)
 	return p.Sprintf(format, num)
+}
+
+func getColorForDifference(difference float64) string {
+	const tolerance = 0.01
+
+	if math.Abs(difference) < tolerance {
+		difference = 0
+	}
+
+	var color string
+	switch {
+	case difference < 0:
+		color = colorRed
+	case difference > 0:
+		color = colorGreen
+	default:
+		color = colorBlue
+	}
+	return color
 }
