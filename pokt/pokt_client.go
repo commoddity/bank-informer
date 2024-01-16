@@ -43,13 +43,18 @@ func ValidatePortalAppID(id string) error {
 func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	var balance *big.Int
 	var err error
-	retries := 0
-	for balance == nil && retries < 5 {
+	var highestBalance *big.Int
+
+	for i := 0; i < 3; i++ {
 		balance, err = p.Provider.GetBalance(p.Config.POKTWalletAddress, nil)
 		if err != nil {
 			return err
 		}
-		retries++
+
+		// If it's the first iteration or the current balance is higher than the highest, update the highest balance
+		if i == 0 || balance.Cmp(highestBalance) > 0 {
+			highestBalance = balance
+		}
 	}
 
 	// Convert balance to float64 and divide by 1e6 to get the correct value
