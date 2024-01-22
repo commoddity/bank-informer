@@ -42,6 +42,7 @@ func createEnvFile() {
 		key, description string
 	}{
 		{"GROVE_PORTAL_APP_ID", "🌿 Enter your Grove Portal App ID. This is the portal application ID for the Grove Portal, used to fetch ERC20 and POKT wallet balances.\nYou can get a free Grove account at https://portal.grove.city/\n"},
+		{"GROVE_SECRET_KEY", "🔑 Enter your Grove Secret Key (optional). If you have a secret key for the Grove Portal, enter it here. If not, just hit enter.\n"},
 		{"ETH_WALLET_ADDRESS", "💼 Enter your Ethereum Wallet Address. This is the address to fetch ERC20 token balances from.\n"},
 		{"POKT_WALLET_ADDRESS", "🎒 Enter your POKT Wallet Address. This is the address to fetch the POKT balance from.\n"},
 		{"CMC_API_KEY", "🔑 Enter the CoinMarketCap API Key. This is used to fetch exchange rates.\nYou can get a free API key from https://pro.coinmarketcap.com/\n"},

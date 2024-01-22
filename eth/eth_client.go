@@ -108,8 +108,11 @@ func (c *Client) GetETHWalletBalances(balances map[string]float64) error {
 
 func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 	header := http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Authorization": []string{c.secretKey},
+		"Content-Type": []string{"application/json"},
+	}
+
+	if c.secretKey != "" {
+		header["Authorization"] = []string{c.secretKey}
 	}
 
 	reqBody, roundValue, err := c.getJsonRPCRequest(erc20Token)

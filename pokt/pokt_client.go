@@ -65,7 +65,7 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	var err error
 	var highestBalance *big.Int
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 5; i++ {
 		balance, err = p.getPOKTWalletBalance(p.Config.POKTWalletAddress)
 		if err != nil {
 			return err
@@ -90,8 +90,11 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 	header := http.Header{
-		"Content-Type":  []string{"application/json"},
-		"Authorization": []string{c.secretKey},
+		"Content-Type": []string{"application/json"},
+	}
+
+	if c.secretKey != "" {
+		header["Authorization"] = []string{c.secretKey}
 	}
 
 	params := map[string]any{

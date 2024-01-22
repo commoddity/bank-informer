@@ -62,10 +62,13 @@ func gatherOptions() options {
 		panic(err)
 	}
 	// Validate that Grove Secret Key is valid
-	groveSecretKey := env.MustGetString(groveSecretKey)
-	if err := pokt.ValidateSecretKey(groveSecretKey); err != nil {
-		panic(err)
+	groveSecretKey := env.GetString(groveSecretKey, "")
+	if groveSecretKey != "" {
+		if err := pokt.ValidateSecretKey(groveSecretKey); err != nil {
+			panic(err)
+		}
 	}
+
 	// Validate that ETH wallet address is valid
 	ethWalletAddress := env.MustGetString(ethWalletAddressEnv)
 	if err := eth.ValidateETHWalletAddress(ethWalletAddress); err != nil {
