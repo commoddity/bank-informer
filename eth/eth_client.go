@@ -61,12 +61,14 @@ type (
 
 type Config struct {
 	PortalAppID      string
+	SecretKey        string
 	ETHWalletAddress string
 	HTTPClient       *http.Client
 }
 
 type Client struct {
 	url        string
+	secretKey  string
 	config     Config
 	httpClient *http.Client
 }
@@ -76,6 +78,7 @@ func NewClient(config Config, httpClient *http.Client) *Client {
 
 	return &Client{
 		url:        url,
+		secretKey:  config.SecretKey,
 		config:     config,
 		httpClient: httpClient,
 	}
@@ -105,7 +108,8 @@ func (c *Client) GetETHWalletBalances(balances map[string]float64) error {
 
 func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 	header := http.Header{
-		"Content-Type": []string{"application/json"},
+		"Content-Type":  []string{"application/json"},
+		"Authorization": []string{c.secretKey},
 	}
 
 	reqBody, roundValue, err := c.getJsonRPCRequest(erc20Token)

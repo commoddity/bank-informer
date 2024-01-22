@@ -5,7 +5,6 @@ go 1.21.0
 require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/joho/godotenv v1.4.0
-	github.com/pokt-foundation/pocket-go v0.17.0
 	golang.org/x/text v0.13.0
 )
 
@@ -22,7 +21,6 @@ require (
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pokt-foundation/utils-go v0.11.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect

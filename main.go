@@ -15,6 +15,7 @@ import (
 const (
 	// Required env vars
 	grovePortalAppID     = "GROVE_PORTAL_APP_ID"
+	groveSecretKey       = "GROVE_SECRET_KEY"
 	ethWalletAddressEnv  = "ETH_WALLET_ADDRESS"
 	poktWalletAddressEnv = "POKT_WALLET_ADDRESS"
 	cmcAPIKeyEnv         = "CMC_API_KEY"
@@ -60,6 +61,11 @@ func gatherOptions() options {
 	if err := pokt.ValidatePortalAppID(grovePortalAppID); err != nil {
 		panic(err)
 	}
+	// Validate that Grove Secret Key is valid
+	groveSecretKey := env.MustGetString(groveSecretKey)
+	if err := pokt.ValidateSecretKey(groveSecretKey); err != nil {
+		panic(err)
+	}
 	// Validate that ETH wallet address is valid
 	ethWalletAddress := env.MustGetString(ethWalletAddressEnv)
 	if err := eth.ValidateETHWalletAddress(ethWalletAddress); err != nil {
@@ -69,10 +75,12 @@ func gatherOptions() options {
 	return options{
 		ethConfig: eth.Config{
 			PortalAppID:      grovePortalAppID,
+			SecretKey:        groveSecretKey,
 			ETHWalletAddress: ethWalletAddress,
 		},
 		poktConfig: pokt.Config{
 			PortalAppID:       grovePortalAppID,
+			SecretKey:         groveSecretKey,
 			POKTWalletAddress: env.MustGetString(poktWalletAddressEnv),
 		},
 		cmcConfig: cmc.Config{

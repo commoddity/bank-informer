@@ -2,31 +2,41 @@ package pokt
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
 
-	"github.com/pokt-foundation/pocket-go/provider"
+	"github.com/commoddity/bank-informer/client"
 )
 
-const poktGrovePortalURL = "https://mainnet.rpc.grove.city/v1/%s"
+const poktGrovePortalURL = "https://mainnet.rpc.grove.city/v1/%s/%s"
 
 type Config struct {
 	PortalAppID       string
+	SecretKey         string
 	POKTWalletAddress string
 }
 
 type Client struct {
-	Config   Config
-	Provider *provider.Provider
+	Config     Config
+	url        string
+	secretKey  string
+	httpClient *http.Client
+}
+
+type queryBalanceOutput struct {
+	Balance *big.Int `json:"balance"`
 }
 
 func NewClient(config Config, httpClient *http.Client) *Client {
-	url := fmt.Sprintf(poktGrovePortalURL, config.PortalAppID)
+	url := fmt.Sprintf(poktGrovePortalURL, config.PortalAppID, "v1/query/balance")
 
 	return &Client{
-		Config:   config,
-		Provider: provider.NewProvider(url, []string{url}),
+		Config:     config,
+		url:        url,
+		secretKey:  config.SecretKey,
+		httpClient: httpClient,
 	}
 }
 
@@ -40,13 +50,23 @@ func ValidatePortalAppID(id string) error {
 	return nil
 }
 
+func ValidateSecretKey(key string) error {
+	if len(key) != 32 {
+		return fmt.Errorf("invalid Secret Key: %s", key)
+	}
+	if _, err := hex.DecodeString(key); err != nil {
+		return fmt.Errorf("invalid Secret Key: %s", key)
+	}
+	return nil
+}
+
 func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	var balance *big.Int
 	var err error
 	var highestBalance *big.Int
 
 	for i := 0; i < 3; i++ {
-		balance, err = p.Provider.GetBalance(p.Config.POKTWalletAddress, nil)
+		balance, err = p.getPOKTWalletBalance(p.Config.POKTWalletAddress)
 		if err != nil {
 			return err
 		}
@@ -66,4 +86,27 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	balances["POKT"] = balanceValue
 
 	return nil
+}
+
+func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
+	header := http.Header{
+		"Content-Type":  []string{"application/json"},
+		"Authorization": []string{c.secretKey},
+	}
+
+	params := map[string]any{
+		"address": address,
+	}
+
+	reqBody, err := json.Marshal(params)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Post[queryBalanceOutput](c.url, header, reqBody, c.httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Balance, nil
 }
