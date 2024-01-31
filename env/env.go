@@ -9,11 +9,18 @@ import (
 	"strings"
 )
 
-const envPath = ".env.bankinformer"
+const (
+	bankInformerFolder = "bank-informer"
+	envPath            = ".env.bankinformer"
+	dbPath             = "db"
+	csvFilename        = "crypto_values.csv"
+)
 
 var (
 	homeDir, _ = os.UserHomeDir()
-	EnvPath    = filepath.Join(homeDir, envPath)
+	EnvPath    = filepath.Join(homeDir, bankInformerFolder, envPath)
+	DBPath     = filepath.Join(homeDir, bankInformerFolder, dbPath)
+	CSVPath    = filepath.Join(homeDir, bankInformerFolder, csvFilename)
 )
 
 // MustGetString gets the required environment var as a string and panics if it is not present

@@ -30,8 +30,6 @@ const (
 	defaultConvertCurrencies    = "USD"
 	defaultCryptoFiatConversion = "USD"
 	defaultCryptoValues         = "USDC,ETH,POKT"
-	// BadgerDB path
-	dbPath = "./db"
 )
 
 type options struct {
@@ -42,8 +40,6 @@ type options struct {
 	cryptoFiatConversion string
 	convertCurrencies    []string
 	cryptoValues         []string
-
-	persistenceDBPath string
 }
 
 func gatherOptions() options {
@@ -96,8 +92,6 @@ func gatherOptions() options {
 		cryptoFiatConversion: cryptoFiatConversion,
 		convertCurrencies:    convertCurrencies,
 		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, defaultCryptoValues),
-
-		persistenceDBPath: dbPath,
 	}
 }
 
@@ -119,7 +113,7 @@ func main() {
 	// Gather options from env vars
 	opts := gatherOptions()
 
-	persistence := persistence.NewPersistence(opts.persistenceDBPath)
+	persistence := persistence.NewPersistence()
 	defer persistence.Close()
 
 	// Add 1 to chanLength to account for the call to get exchange rates
