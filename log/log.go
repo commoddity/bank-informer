@@ -125,7 +125,6 @@ func (l *Logger) RunProgressBar() {
 	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")
 	fmt.Print("💹 Crypto totals will be displayed in both crypto and the following fiat currency: ", l.cryptoFiatConversion, "\n")
 	fmt.Print("💻 Crypto values will be displayed for the following cryptocurrencies: ", l.cryptoValues, "\n")
-	fmt.Print("🚀 Getting financial information ...\n")
 
 	bar := pb.StartNew(l.chanLength)
 
@@ -139,15 +138,14 @@ func (l *Logger) RunProgressBar() {
 	for val := range l.progressChan {
 		currentRelay := currentRelay.Add(1)
 
-		prefix := fmt.Sprintf("📡 Fetching data for %5s", val)
-
-		if currentRelay == int32(l.chanLength) {
-			prefix = "✅ Fetched all data!"
+		if currentRelay < int32(l.chanLength) {
+			prefix := fmt.Sprintf("📡 Fetching data for %5s", val)
+			bar.Set("prefix", prefix).Increment()
+		} else {
+			prefix := "🚀 Successfully fetched all data!"
+			bar.Set("prefix", prefix).SetCurrent(int64(l.chanLength)).Finish()
 		}
-		bar.Set("prefix", prefix).Increment()
 	}
-
-	bar.SetCurrent(int64(l.chanLength)).Finish()
 }
 
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
@@ -156,7 +154,7 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 
 	fiatTotal := 0.0
 
-	<-time.After(500 * time.Millisecond)
+	<-time.After(100 * time.Millisecond)
 
 	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
