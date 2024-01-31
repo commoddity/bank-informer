@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/commoddity/bank-informer/client"
 )
@@ -12,12 +13,17 @@ import (
 const cmcURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=%s&convert=%s"
 
 type Config struct {
-	CmcAPIKey string
+	CmcAPIKey         string
+	ConvertCurrencies []string
 }
 
 type Client struct {
-	Config     Config
-	HTTPClient *http.Client
+	Config            Config
+	HTTPClient        *http.Client
+	convertCurrencies []string
+	progressChan      chan string
+	mutex             *sync.Mutex
+	waitGroup         *sync.WaitGroup
 }
 
 type cmcResult struct {
@@ -30,14 +36,55 @@ type cmcResult struct {
 	} `json:"data"`
 }
 
-func NewClient(config Config, httpClient *http.Client) *Client {
+func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
 	return &Client{
-		Config:     config,
-		HTTPClient: httpClient,
+		Config:            config,
+		HTTPClient:        httpClient,
+		convertCurrencies: config.ConvertCurrencies,
+		progressChan:      progressChan,
+		mutex:             mutex,
+		waitGroup:         waitGroup,
 	}
 }
 
-func (c *Client) GetExchangeRates(balances map[string]float64, convertCurrency string) (map[string]float64, error) {
+func (c *Client) GetAllExchangeRates(balances map[string]float64) (map[string]map[string]float64, error) {
+	exchangeRates := make(map[string]map[string]float64)
+	errorChan := make(chan error, len(c.convertCurrencies))
+
+	// For each currency in the list of currencies to convert
+	for _, convertCurrency := range c.convertCurrencies {
+		c.waitGroup.Add(1)
+		go func(currency string) {
+			defer c.waitGroup.Done()
+
+			// Retrieve and store the exchange rates for the current currency
+			currencyExchangeRates, err := c.getExchangeRates(balances, currency)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+
+			c.mutex.Lock()
+			// Add the retrieved exchange rates to the map of exchange rates
+			exchangeRates[currency] = currencyExchangeRates
+			c.mutex.Unlock()
+
+			c.progressChan <- currency
+		}(convertCurrency)
+	}
+
+	c.waitGroup.Wait()
+	close(errorChan)
+
+	// Check if there were any errors
+	if len(errorChan) > 0 {
+		return nil, <-errorChan
+	}
+
+	return exchangeRates, nil
+}
+
+func (c *Client) getExchangeRates(balances map[string]float64, convertCurrency string) (map[string]float64, error) {
 	url := fmt.Sprintf(cmcURL, getCurrencyKeys(balances), convertCurrency)
 
 	header := http.Header{}

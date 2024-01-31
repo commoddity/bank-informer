@@ -86,7 +86,8 @@ func gatherOptions() options {
 			POKTWalletAddress: env.MustGetString(poktWalletAddressEnv),
 		},
 		cmcConfig: cmc.Config{
-			CmcAPIKey: env.MustGetString(cmcAPIKeyEnv),
+			CmcAPIKey:         env.MustGetString(cmcAPIKeyEnv),
+			ConvertCurrencies: convertCurrencies,
 		},
 
 		cryptoFiatConversion: cryptoFiatConversion,
@@ -96,6 +97,7 @@ func gatherOptions() options {
 }
 
 func init() {
+	// Load .env file from the bank-informer dir in the user's home directory
 	_ = godotenv.Load(env.EnvPath)
 }
 
@@ -107,12 +109,10 @@ func main() {
 	// Setup .env file if it doesn't exist
 	setup.Start()
 
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
 	// Gather options from env vars
 	opts := gatherOptions()
 
+	// Initialize persistence module
 	persistence := persistence.NewPersistence()
 	defer persistence.Close()
 
@@ -127,6 +127,7 @@ func main() {
 		CryptoValues:         opts.cryptoValues,
 	}, persistence, progressChan, chanLength)
 
+	// Start the progress bar in a goroutine
 	go logger.RunProgressBar()
 
 	// Create a map to store balances
@@ -135,11 +136,15 @@ func main() {
 		balances[crypto] = 0
 	}
 
+	// Create mutex and wait group
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
 	// Create clients
 	httpClient := client.New()
 	ethClient := eth.NewClient(opts.ethConfig, httpClient, progressChan, &mu, &wg)
 	poktClient := pokt.NewClient(opts.poktConfig, httpClient, progressChan, &mu, &wg)
-	cmcClient := cmc.NewClient(opts.cmcConfig, httpClient)
+	cmcClient := cmc.NewClient(opts.cmcConfig, httpClient, progressChan, &mu, &wg)
 
 	// Retrieve and store ERC20 wallet balances through Grove Portal
 	err := ethClient.GetETHWalletBalances(balances)
@@ -153,40 +158,17 @@ func main() {
 		panic(err)
 	}
 
-	// Create a map to store exchange rates
-	exchangeRates := make(map[string]map[string]float64)
-	errorChan := make(chan error, len(opts.convertCurrencies))
-
-	// For each currency in the list of currencies to convert
-	for _, convertCurrency := range opts.convertCurrencies {
-		wg.Add(1)
-		go func(currency string) {
-			defer wg.Done()
-
-			// Retrieve and store the exchange rates for the current currency
-			currencyExchangeRates, err := cmcClient.GetExchangeRates(balances, currency)
-			if err != nil {
-				errorChan <- err
-				return
-			}
-
-			mu.Lock()
-			// Add the retrieved exchange rates to the map of exchange rates
-			exchangeRates[currency] = currencyExchangeRates
-			mu.Unlock()
-
-			progressChan <- currency
-		}(convertCurrency)
+	// Retrieve and store the exchange rates for the current currency
+	exchangeRates, err := cmcClient.GetAllExchangeRates(balances)
+	if err != nil {
+		panic(err)
 	}
 
+	// Wait for all goroutines to finish
 	wg.Wait()
-	close(errorChan)
-	close(progressChan)
 
-	// Check if there were any errors
-	if len(errorChan) > 0 {
-		panic(<-errorChan)
-	}
+	// Close the progress bar channel
+	close(progressChan)
 
 	// Calculate the fiat values for each balance
 	fiatValues := cmcClient.GetFiatValues(balances, exchangeRates)
