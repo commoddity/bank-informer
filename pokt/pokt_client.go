@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"sync"
 
 	"github.com/commoddity/bank-informer/client"
 )
@@ -19,24 +20,30 @@ type Config struct {
 }
 
 type Client struct {
-	Config     Config
-	url        string
-	secretKey  string
-	httpClient *http.Client
+	Config       Config
+	url          string
+	secretKey    string
+	httpClient   *http.Client
+	progressChan chan string
+	mutex        *sync.Mutex
+	waitGroup    *sync.WaitGroup
 }
 
 type queryBalanceOutput struct {
 	Balance *big.Int `json:"balance"`
 }
 
-func NewClient(config Config, httpClient *http.Client) *Client {
+func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
 	url := fmt.Sprintf(poktGrovePortalURL, config.PortalAppID, "v1/query/balance")
 
 	return &Client{
-		Config:     config,
-		url:        url,
-		secretKey:  config.SecretKey,
-		httpClient: httpClient,
+		Config:       config,
+		url:          url,
+		secretKey:    config.SecretKey,
+		httpClient:   httpClient,
+		progressChan: progressChan,
+		mutex:        mutex,
+		waitGroup:    waitGroup,
 	}
 }
 
@@ -62,28 +69,54 @@ func ValidateSecretKey(key string) error {
 
 func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	var balance *big.Int
-	var err error
 	var highestBalance *big.Int
 
-	for i := 0; i < 5; i++ {
-		balance, err = p.getPOKTWalletBalance(p.Config.POKTWalletAddress)
-		if err != nil {
-			return err
-		}
+	// Create a channel to receive balance results
+	balanceChan := make(chan *big.Int, 5)
+	errorChan := make(chan error, 5)
 
+	for i := 0; i < 5; i++ {
+		p.waitGroup.Add(1)
+		go func() {
+			defer p.waitGroup.Done()
+			balance, err := p.getPOKTWalletBalance(p.Config.POKTWalletAddress)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			balanceChan <- balance
+		}()
+	}
+
+	// Wait for all goroutines to finish
+	p.waitGroup.Wait()
+	close(balanceChan)
+	close(errorChan)
+
+	// Check if there were any errors
+	if len(errorChan) > 0 {
+		return <-errorChan
+	}
+
+	// Process the balance results
+	for balance = range balanceChan {
 		// If it's the first iteration or the current balance is higher than the highest, update the highest balance
-		if i == 0 || balance.Cmp(highestBalance) > 0 {
+		if highestBalance == nil || balance.Cmp(highestBalance) > 0 {
 			highestBalance = balance
 		}
 	}
 
 	// Convert balance to float64 and divide by 1e6 to get the correct value
-	balanceFloat := new(big.Float).SetInt(balance)
+	balanceFloat := new(big.Float).SetInt(highestBalance)
 	balanceFloat.Quo(balanceFloat, big.NewFloat(1e6))
 	balanceValue, _ := balanceFloat.Float64()
 
+	p.progressChan <- "POKT"
+
 	// Modify the passed map with the balance
+	p.mutex.Lock()
 	balances["POKT"] = balanceValue
+	p.mutex.Unlock()
 
 	return nil
 }

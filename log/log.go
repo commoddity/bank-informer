@@ -3,11 +3,13 @@ package log
 import (
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
+	"github.com/cheggaaa/pb/v3"
 	"github.com/commoddity/bank-informer/persistence"
 )
 
@@ -16,6 +18,8 @@ type Logger struct {
 	cryptoValues         []string
 	convertCurrencies    []string
 	persistence          *persistence.Persistence
+	progressChan         chan string
+	chanLength           int
 }
 
 type Config struct {
@@ -25,12 +29,14 @@ type Config struct {
 }
 
 // Modified New function to include Persistence
-func New(config Config, persistence *persistence.Persistence) *Logger {
+func New(config Config, persistence *persistence.Persistence, progressChan chan string, chanLength int) *Logger {
 	return &Logger{
 		cryptoFiatConversion: config.CryptoFiatConversion,
 		cryptoValues:         config.CryptoValues,
 		convertCurrencies:    config.ConvertCurrencies,
 		persistence:          persistence,
+		progressChan:         progressChan,
+		chanLength:           chanLength,
 	}
 }
 
@@ -114,27 +120,34 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 
 /* ------------ Log Funcs ------------ */
 
-func (l *Logger) DisplayLoadingBar(done chan bool) {
+func (l *Logger) RunProgressBar() {
 	fmt.Println("🔎 Bank Informer script is starting at", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")
 	fmt.Print("💹 Crypto totals will be displayed in both crypto and the following fiat currency: ", l.cryptoFiatConversion, "\n")
 	fmt.Print("💻 Crypto values will be displayed for the following cryptocurrencies: ", l.cryptoValues, "\n")
 	fmt.Print("🚀 Getting financial information ...\n")
 
-	for i := 0; i <= 100; i++ {
-		fmt.Printf("\r%d%% ", i) // This will print the percentage
-		for j := 0; j < i; j++ {
-			fmt.Print("▓")
+	bar := pb.StartNew(l.chanLength)
+
+	bar.SetTemplateString(`{{string . "prefix"}} {{bar . "[" "=" ">" "_" "]"}} {{percent .}}`)
+	bar.SetWidth(90)
+	bar.SetMaxWidth(90)
+
+	var currentRelay atomic.Int32
+
+	// Increment progress bar each time a bool is received in the channel
+	for val := range l.progressChan {
+		currentRelay := currentRelay.Add(1)
+
+		prefix := fmt.Sprintf("📡 Fetching data for %5s", val)
+
+		if currentRelay == int32(l.chanLength) {
+			prefix = "✅ Fetched all data!"
 		}
-		time.Sleep(40 * time.Millisecond)
-		if i == 100 {
-			fmt.Print("\r\033[2K") // This will clear the entire line when loading reaches 100%
-		}
+		bar.Set("prefix", prefix).Increment()
 	}
 
-	fmt.Print("✅ Financial information fetched successfully!\n\n")
-
-	done <- true
+	bar.SetCurrent(int64(l.chanLength)).Finish()
 }
 
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
@@ -143,7 +156,9 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 
 	fiatTotal := 0.0
 
-	fmt.Println("<--------- 🔐 Crypto Balances 🔐 --------->")
+	<-time.After(500 * time.Millisecond)
+
+	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]

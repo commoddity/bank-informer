@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/commoddity/bank-informer/client"
 )
@@ -67,20 +68,26 @@ type Config struct {
 }
 
 type Client struct {
-	url        string
-	secretKey  string
-	config     Config
-	httpClient *http.Client
+	url          string
+	secretKey    string
+	config       Config
+	httpClient   *http.Client
+	progressChan chan string
+	mutex        *sync.Mutex
+	waitGroup    *sync.WaitGroup
 }
 
-func NewClient(config Config, httpClient *http.Client) *Client {
+func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
 	url := fmt.Sprintf(ethGrovePortalURL, config.PortalAppID)
 
 	return &Client{
-		url:        url,
-		secretKey:  config.SecretKey,
-		config:     config,
-		httpClient: httpClient,
+		url:          url,
+		secretKey:    config.SecretKey,
+		config:       config,
+		httpClient:   httpClient,
+		progressChan: progressChan,
+		mutex:        mutex,
+		waitGroup:    waitGroup,
 	}
 }
 
@@ -92,17 +99,39 @@ func ValidateETHWalletAddress(address string) error {
 }
 
 func (c *Client) GetETHWalletBalances(balances map[string]float64) error {
+	errorChan := make(chan error, len(balances))
+
 	for token := range balances {
 		if _, ok := erc20TokenConfig[token]; !ok {
 			continue
 		}
 
-		balance, err := c.getETHWalletBalance(token)
-		if err != nil {
-			return err
-		}
-		balances[token] = balance
+		c.waitGroup.Add(1)
+		go func(token string) {
+			defer c.waitGroup.Done()
+
+			balance, err := c.getETHWalletBalance(token)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+
+			c.mutex.Lock()
+			balances[token] = balance
+			c.mutex.Unlock()
+
+			c.progressChan <- token
+		}(token)
 	}
+
+	c.waitGroup.Wait()
+	close(errorChan)
+
+	// Check if there were any errors
+	if len(errorChan) > 0 {
+		return <-errorChan
+	}
+
 	return nil
 }
 
