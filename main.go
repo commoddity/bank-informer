@@ -12,6 +12,7 @@ import (
 	"github.com/commoddity/bank-informer/persistence"
 	"github.com/commoddity/bank-informer/pokt"
 	"github.com/commoddity/bank-informer/setup"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -98,6 +99,10 @@ func gatherOptions() options {
 
 		persistenceDBPath: dbPath,
 	}
+}
+
+func init() {
+	_ = godotenv.Load(env.EnvPath)
 }
 
 // This program retrieves and logs the balances of ETH and POKT wallets.

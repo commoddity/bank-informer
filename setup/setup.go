@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/commoddity/bank-informer/env"
 )
 
 func Start() {
@@ -13,7 +15,7 @@ func Start() {
 }
 
 func checkEnvFile() {
-	_, err := os.Stat(".env")
+	_, err := os.Stat(env.EnvPath)
 	if os.IsNotExist(err) {
 		promptUser()
 	}
@@ -31,9 +33,9 @@ func promptUser() {
 }
 
 func createEnvFile() {
-	file, err := os.Create(".env")
+	file, err := os.OpenFile(env.EnvPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		fmt.Println("Error creating .env file:", err)
+		fmt.Println("🚫 Error creating .env file:", err)
 		return
 	}
 	defer file.Close()

@@ -5,10 +5,15 @@ package env
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+)
 
-	// autoload env vars
-	_ "github.com/joho/godotenv/autoload"
+const envPath = ".env.bankinformer"
+
+var (
+	homeDir, _ = os.UserHomeDir()
+	EnvPath    = filepath.Join(homeDir, envPath)
 )
 
 // MustGetString gets the required environment var as a string and panics if it is not present
