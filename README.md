@@ -49,8 +49,4 @@ bank-informer
 
 For the first run the application will ask you for the above environment variables and place them in a `.env.bankinformer` file in your home directory.
 
-After that just run it to fetch your balances. 🚀
-
-To execute just place the `main` binary file (or `main.exe` for Windows) and `.env` in the same directory then run `./main` from the command line.
-
-The application will now run.
+After that just run `bank-informer` to fetch your balances. 🚀
