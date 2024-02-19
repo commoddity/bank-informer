@@ -22,10 +22,10 @@ Uses the Grove Portal for RPC.
 
 The application requires several environment variables to function correctly. These are:
 
+- `GROVE_PORTAL_APP_ID`: The application ID for the Grove portal, used for RPC.
 - `ETH_WALLET_ADDRESS`: The Ethereum wallet address to fetch the balance from.
-- `GROVE_PORTAL_APP_ID`: The application ID for the Pocket Network portal, used to fetch POKT wallet balances.
 - `POKT_WALLET_ADDRESS`: The POKT wallet address to fetch the balance from.
-- `CMC_API_KEY`: The API key for the CoinMarketCap service, used to fetch exchange rates.
+- `CMC_API_KEY`: The API key for the CoinMarketCap service, used to fetch fiat-crypto exchange rates.
 
 There are also several optional environment variables:
 
