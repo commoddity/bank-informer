@@ -11,8 +11,6 @@ import (
 	"github.com/commoddity/bank-informer/client"
 )
 
-const poktGrovePortalURL = "https://mainnet.rpc.grove.city/v1/%s/%s"
-
 type Config struct {
 	PortalAppID       string
 	SecretKey         string
@@ -34,7 +32,7 @@ type queryBalanceOutput struct {
 }
 
 func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
-	url := fmt.Sprintf(poktGrovePortalURL, config.PortalAppID, "v1/query/balance")
+	url := fmt.Sprintf("https://mainnet.rpc.grove.city/v1/%s/v1/query/balance", config.PortalAppID)
 
 	return &Client{
 		Config:       config,
@@ -67,7 +65,7 @@ func ValidateSecretKey(key string) error {
 	return nil
 }
 
-func (p *Client) GetWalletBalance(balances map[string]float64) error {
+func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	var balance *big.Int
 	var highestBalance *big.Int
 
@@ -76,10 +74,10 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	errorChan := make(chan error, 5)
 
 	for i := 0; i < 5; i++ {
-		p.waitGroup.Add(1)
+		c.waitGroup.Add(1)
 		go func() {
-			defer p.waitGroup.Done()
-			balance, err := p.getPOKTWalletBalance(p.Config.POKTWalletAddress)
+			defer c.waitGroup.Done()
+			balance, err := c.getPOKTWalletBalance(c.Config.POKTWalletAddress)
 			if err != nil {
 				errorChan <- err
 				return
@@ -89,7 +87,7 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	}
 
 	// Wait for all goroutines to finish
-	p.waitGroup.Wait()
+	c.waitGroup.Wait()
 	close(balanceChan)
 	close(errorChan)
 
@@ -111,12 +109,12 @@ func (p *Client) GetWalletBalance(balances map[string]float64) error {
 	balanceFloat.Quo(balanceFloat, big.NewFloat(1e6))
 	balanceValue, _ := balanceFloat.Float64()
 
-	p.progressChan <- "POKT"
+	c.progressChan <- "POKT"
 
 	// Modify the passed map with the balance
-	p.mutex.Lock()
+	c.mutex.Lock()
 	balances["POKT"] = balanceValue
-	p.mutex.Unlock()
+	c.mutex.Unlock()
 
 	return nil
 }
@@ -141,6 +139,7 @@ func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 
 	resp, err := client.Post[queryBalanceOutput](c.url, header, reqBody, c.httpClient)
 	if err != nil {
+		fmt.Println("ERROR HERE", err)
 		return nil, err
 	}
 

@@ -125,7 +125,7 @@ func Post[T any](endpoint string, header http.Header, postData []byte, httpClien
 	defer resp.Body.Close()
 
 	// Check response status
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		code := resp.StatusCode
 		text := http.StatusText(code)
 		return data, fmt.Errorf("%s. %d %s", errResponseNotOK, code, text)
