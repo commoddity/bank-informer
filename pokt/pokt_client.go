@@ -68,6 +68,7 @@ func ValidateSecretKey(key string) error {
 func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	var balance *big.Int
 	var highestBalance *big.Int
+	var successfulAttempts int
 
 	// Create a channel to receive balance results
 	balanceChan := make(chan *big.Int, 5)
@@ -77,12 +78,16 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 		c.waitGroup.Add(1)
 		go func() {
 			defer c.waitGroup.Done()
-			balance, err := c.getPOKTWalletBalance(c.Config.POKTWalletAddress)
-			if err != nil {
-				errorChan <- err
-				return
+			var balance *big.Int
+			var err error
+			for attempt := 0; attempt < 3; attempt++ {
+				balance, err = c.getPOKTWalletBalance(c.Config.POKTWalletAddress)
+				if err == nil {
+					balanceChan <- balance
+					return
+				}
 			}
-			balanceChan <- balance
+			errorChan <- err
 		}()
 	}
 
@@ -91,17 +96,18 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	close(balanceChan)
 	close(errorChan)
 
-	// Check if there were any errors
-	if len(errorChan) > 0 {
-		return <-errorChan
-	}
-
 	// Process the balance results
 	for balance = range balanceChan {
+		successfulAttempts++
 		// If it's the first iteration or the current balance is higher than the highest, update the highest balance
 		if highestBalance == nil || balance.Cmp(highestBalance) > 0 {
 			highestBalance = balance
 		}
+	}
+
+	// If there were no successful attempts, return an error
+	if successfulAttempts == 0 {
+		return <-errorChan
 	}
 
 	// Convert balance to float64 and divide by 1e6 to get the correct value
@@ -139,7 +145,6 @@ func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 
 	resp, err := client.Post[queryBalanceOutput](c.url, header, reqBody, c.httpClient)
 	if err != nil {
-		fmt.Println("ERROR HERE", err)
 		return nil, err
 	}
 
