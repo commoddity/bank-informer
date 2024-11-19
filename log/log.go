@@ -156,6 +156,8 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 
 	<-time.After(100 * time.Millisecond)
 
+	poktTotal := 0.0
+
 	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
@@ -182,6 +184,10 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 				fiatTotal += avgValues.FiatBalance
 			}
 
+			if crypto == "POKT" || crypto == "WPOKT" {
+				poktTotal += balance
+			}
+
 			key := fmt.Sprintf("%s-%s", crypto, currentDate)
 			cryptoVal := persistence.CryptoValues{
 				CryptoBalance: balance,
@@ -195,6 +201,10 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 			}
 		}
 	}
+
+	fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
+	fiatBalance := poktTotal * fiatValue
+	fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatBalance), l.cryptoFiatConversion)
 
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
 	defaultFiatBalance := fiatValues[l.cryptoFiatConversion]
