@@ -202,9 +202,11 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 		}
 	}
 
-	fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
-	fiatBalance := poktTotal * fiatValue
-	fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatBalance), l.cryptoFiatConversion)
+	if poktTotal > 0 {
+		fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
+		fiatBalance := poktTotal * fiatValue
+		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatBalance), l.cryptoFiatConversion)
+	}
 
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
 	defaultFiatBalance := fiatValues[l.cryptoFiatConversion]
