@@ -60,6 +60,46 @@ type (
 	}
 )
 
+// UnmarshalJSON unmarshals a JsonRPCResponse from JSON.
+func (r *JsonRPCResponse) UnmarshalJSON(data []byte) error {
+	type Alias JsonRPCResponse
+	aux := &struct {
+		Error interface{} `json:"error,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	switch v := aux.Error.(type) {
+	case nil:
+		// If error is nil, set r.Error to nil
+		r.Error = nil
+	case map[string]interface{}:
+		// Attempt to unmarshal into JsonRPCError
+		var jsonRPCError JsonRPCError
+		errData, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(errData, &jsonRPCError); err != nil {
+			return err
+		}
+		r.Error = &jsonRPCError
+	case string:
+		// If it's a string, set the error message
+		r.Error = &JsonRPCError{Message: v}
+	default:
+		// Handle unexpected types
+		return fmt.Errorf("unexpected error type: %T", v)
+	}
+
+	return nil
+}
+
 type Config struct {
 	PortalAppID      string
 	SecretKey        string
@@ -136,6 +176,9 @@ func (c *Client) GetETHWalletBalances(balances map[string]float64) error {
 }
 
 func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
+	const maxRetries = 5
+	var lastErr error
+
 	header := http.Header{
 		"Content-Type": []string{"application/json"},
 	}
@@ -149,17 +192,23 @@ func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 		return 0, err
 	}
 
-	resp, err := client.Post[JsonRPCResponse](c.url, header, reqBody, c.httpClient)
-	if err != nil {
-		return 0, err
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		resp, err := client.Post[JsonRPCResponse](c.url, header, reqBody, c.httpClient)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		erc20WalletBalance, err := c.decodeHexToFloat64(resp.Result)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		return erc20WalletBalance / roundValue, nil
 	}
 
-	erc20WalletBalance, err := c.decodeHexToFloat64(resp.Result)
-	if err != nil {
-		return 0, err
-	}
-
-	return erc20WalletBalance / roundValue, nil
+	return 0, fmt.Errorf("failed to get wallet balance after %d attempts: %w", maxRetries, lastErr)
 }
 
 func (c *Client) getJsonRPCRequest(token string) ([]byte, float64, error) {
@@ -180,12 +229,17 @@ func (c *Client) getJsonRPCRequest(token string) ([]byte, float64, error) {
 }
 
 func (c *Client) decodeHexToFloat64(hexValue string) (float64, error) {
+	// Check if the hexValue is empty
+	if hexValue == "" {
+		return 0, fmt.Errorf("empty result field")
+	}
+
 	// Remove the "0x" prefix before parsing
 	hexValue = strings.TrimPrefix(hexValue, "0x")
 
 	value, err := strconv.ParseInt(hexValue, 16, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse hex value: %w", err)
 	}
 
 	return float64(value), nil

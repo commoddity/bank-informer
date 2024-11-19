@@ -80,7 +80,7 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 			defer c.waitGroup.Done()
 			var balance *big.Int
 			var err error
-			for attempt := 0; attempt < 3; attempt++ {
+			for attempt := 0; attempt < 5; attempt++ {
 				balance, err = c.getPOKTWalletBalance(c.Config.POKTWalletAddress)
 				if err == nil {
 					balanceChan <- balance
