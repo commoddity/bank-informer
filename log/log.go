@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"math"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -204,7 +205,8 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 		}
 	}
 
-	if poktTotal > 0 {
+	hasMultiplePokts := slices.Contains(l.cryptoValues, "WPOKT") && slices.Contains(l.cryptoValues, "POKT")
+	if hasMultiplePokts && poktTotal > 0 {
 		fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
 		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", poktFiatTotal), l.cryptoFiatConversion)
 	}
