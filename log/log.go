@@ -110,6 +110,10 @@ var (
 		"ETH":   6,
 		"WBTC":  6,
 	}
+
+	fiatRoundValues = map[string]int{
+		"POKT": 4,
+	}
 )
 
 func ValidateCurrencySymbol(currency, envVar string) error {
@@ -166,7 +170,7 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
 			fiatBalance := balance * fiatValue
 
-			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatBalance), l.cryptoFiatConversion)
+			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatCryptoFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat(crypto, fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", fiatBalance), l.cryptoFiatConversion)
 
 			// Fetch average values from the previous day
 			previousKey := fmt.Sprintf("%s-%s", crypto, previousDate)
@@ -180,7 +184,7 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 				if difference == 0 {
 					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
 				} else {
-					fmt.Printf(" %s%s%s\n", color, formatFloat("", difference), colorReset)
+					fmt.Printf(" %s%s%s\n", color, formatFiatFloat(crypto, difference), colorReset)
 				}
 
 				fiatTotal += avgValues.FiatBalance
@@ -208,7 +212,7 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	hasMultiplePokts := slices.Contains(l.cryptoValues, "WPOKT") && slices.Contains(l.cryptoValues, "POKT")
 	if hasMultiplePokts && poktTotal > 0 {
 		fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
-		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFloat("", poktFiatTotal), l.cryptoFiatConversion)
+		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatCryptoFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", poktFiatTotal), l.cryptoFiatConversion)
 	}
 
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
@@ -217,14 +221,14 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 
 	for _, fiat := range l.convertCurrencies {
 		if balance, ok := fiatValues[fiat]; ok {
-			fmt.Printf("%s %s - %s%s", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFloat("", balance))
+			fmt.Printf("%s %s - %s%s", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFiatFloat("", balance))
 
 			if fiat == l.cryptoFiatConversion {
 				color := getColorForDifference(differenceInDefaultFiat)
 				if differenceInDefaultFiat == 0 {
 					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], "0.00", colorReset)
 				} else {
-					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFloat("", differenceInDefaultFiat), colorReset)
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFiatFloat("", differenceInDefaultFiat), colorReset)
 				}
 			} else {
 				exchangeRate := balance / defaultFiatBalance
@@ -233,15 +237,25 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 				if difference == 0 {
 					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], "0.00", colorReset)
 				} else {
-					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFloat("", difference), colorReset)
+					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFiatFloat("", difference), colorReset)
 				}
 			}
 		}
 	}
 }
 
-func formatFloat(crypto string, num float64) string {
+func formatCryptoFloat(crypto string, num float64) string {
 	roundValue, ok := cryptoRoundValues[crypto]
+	if !ok {
+		roundValue = 2 // default to 2 decimal places if crypto not found in map
+	}
+	p := message.NewPrinter(language.English)
+	format := fmt.Sprintf("%%.%df", roundValue)
+	return p.Sprintf(format, num)
+}
+
+func formatFiatFloat(crypto string, num float64) string {
+	roundValue, ok := fiatRoundValues[crypto]
 	if !ok {
 		roundValue = 2 // default to 2 decimal places if crypto not found in map
 	}
