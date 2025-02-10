@@ -184,7 +184,7 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 				if difference == 0 {
 					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
 				} else {
-					fmt.Printf(" %s%s%s\n", color, formatFiatFloat(crypto, difference), colorReset)
+					fmt.Printf(" %s%s%s\n", color, formatFiatFloat("", difference), colorReset)
 				}
 
 				fiatTotal += avgValues.FiatBalance
