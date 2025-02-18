@@ -21,6 +21,11 @@ var erc20TokenConfig = map[string]func(*JsonRPCRequest, string) float64{
 		requestBody.Params = json.RawMessage(fmt.Sprintf(`[{"to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eb48", "data": "0x70a08231000000000000000000000000%s"}, "latest"]`, strings.TrimPrefix(address, "0x")))
 		return 1e6
 	},
+	"USDT": func(requestBody *JsonRPCRequest, address string) float64 {
+		requestBody.Method = "eth_call"
+		requestBody.Params = json.RawMessage(fmt.Sprintf(`[{"to": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "data": "0x70a08231000000000000000000000000%s"}, "latest"]`, strings.TrimPrefix(address, "0x")))
+		return 1e6
+	},
 	"ETH": func(requestBody *JsonRPCRequest, address string) float64 {
 		requestBody.Method = "eth_getBalance"
 		requestBody.Params = json.RawMessage(fmt.Sprintf(`["%s", "latest"]`, address))

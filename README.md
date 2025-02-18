@@ -4,7 +4,7 @@
 
 Bank Informer is a Go-based application that retrieves and logs the balances of Ethereum (ETH) and Pocket Network (POKT) wallets. It fetches the exchange rates for a list of currencies and calculates the fiat values for each balance. The balances, fiat values, and exchange rates are then logged.
 
-Currently works for the following tokens: `USDC, ETH, POKT, WPOKT, WBTC`
+Currently works for the following tokens: `USDC, USDT, ETH, POKT, WPOKT, WBTC`
 
 **Pull requests welcome to support additional ERC20 tokens.**
 

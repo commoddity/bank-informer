@@ -107,6 +107,7 @@ var (
 		"POKT":  0,
 		"WPOKT": 0,
 		"USDC":  2,
+		"USDT":  2,
 		"ETH":   6,
 		"WBTC":  6,
 	}
