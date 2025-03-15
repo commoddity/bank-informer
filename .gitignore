@@ -22,6 +22,7 @@ tmp/*
 .DS_Store
 .vscode
 .vscode/*
+.*.yaml
 
 # Go Binaries
 bin
