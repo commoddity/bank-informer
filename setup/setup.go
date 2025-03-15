@@ -5,17 +5,32 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
-	"github.com/commoddity/bank-informer/env"
+	"gopkg.in/yaml.v3"
+
+	"github.com/commoddity/bank-informer/config"
+)
+
+// Define the field names as constants in snake_case, as sourced from .bankinformer.config.yaml and config.go.
+const (
+	KeyPathApiUrl           = "path_api_url"
+	KeyPathApiKey           = "path_api_key"
+	KeyEthWalletAddress     = "eth_wallet_address"
+	KeyPoktWalletAddress    = "pokt_wallet_address"
+	KeyCmcApiKey            = "cmc_api_key"
+	KeyCryptoFiatConversion = "crypto_fiat_conversion"
+	KeyConvertCurrencies    = "convert_currencies"
+	KeyCryptoValues         = "crypto_values"
 )
 
 func Start() {
-	checkEnvFile()
+	checkConfigFile()
 }
 
-func checkEnvFile() {
-	_, err := os.Stat(env.EnvPath)
+func checkConfigFile() {
+	_, err := os.Stat(config.ConfigPath)
 	if os.IsNotExist(err) {
 		promptUser()
 	}
@@ -23,80 +38,114 @@ func checkEnvFile() {
 
 func promptUser() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("👋 Welcome to the Bank Informer app! It looks like you're running the app for the first time.\n❓We need to gather a few variables to get started. Would you like to proceed?\n(yes/no): ")
+	fmt.Print("👋 Welcome to the Bank Informer app! It looks like you're running the app for the first time.\n❓ We need to gather a few variables to create your YAML configuration file for the PATH API & Toolkit Harness.\nWould you like to proceed? (yes/no): ")
 
 	text, _ := reader.ReadString('\n')
-	text = strings.ReplaceAll(text, "\n", "")
+	text = strings.TrimSpace(text)
 	if strings.ToLower(text) == "yes" {
-		createEnvFile()
+		createConfigFile()
 	}
 }
 
-func createEnvFile() {
-	file, err := os.OpenFile(env.EnvPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		fmt.Println("🚫 Error creating .env file:", err)
+func createConfigFile() {
+	// Ensure the configuration directory exists.
+	configDir := filepath.Dir(config.ConfigPath)
+	if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
+		fmt.Println("🚫 Error creating configuration directory:", err)
 		return
-	}
-	defer file.Close()
-
-	prompts := []struct {
-		key, description string
-	}{
-		{"GROVE_PORTAL_APP_ID", "🌿 Enter your Grove Portal App ID. This is the portal application ID for the Grove Portal, used to fetch ERC20 and POKT wallet balances.\nYou can get a free Grove account at https://portal.grove.city/\n"},
-		{"GROVE_SECRET_KEY", "🔑 Enter your Grove Secret Key (optional). If you have a secret key for the Grove Portal, enter it here. If not, just hit enter.\n"},
-		{"ETH_WALLET_ADDRESS", "💼 Enter your Ethereum Wallet Address. This is the address to fetch ERC20 token balances from.\n"},
-		{"POKT_WALLET_ADDRESS", "🎒 Enter your POKT Wallet Address. This is the address to fetch the POKT balance from.\n"},
-		{"CMC_API_KEY", "🔑 Enter the CoinMarketCap API Key. This is used to fetch exchange rates.\nYou can get a free API key from https://pro.coinmarketcap.com/\n"},
 	}
 
 	reader := bufio.NewReader(os.Stdin)
-	for _, prompt := range prompts {
-		clearConsole()
+	var cfg config.Config
 
-		fmt.Print(prompt.description)
-		value, _ := reader.ReadString('\n')
-		value = strings.ReplaceAll(value, "\n", "")
-		_, err := file.WriteString(fmt.Sprintf("%s=%s\n", prompt.key, value))
-		if err != nil {
-			fmt.Println("Error writing to .env file:", err)
-			return
-		}
-		os.Setenv(prompt.key, value)
+	// Required configuration prompts using constant field names.
+	requiredPrompts := []struct {
+		field  string
+		prompt string
+	}{
+		{KeyPathApiUrl, "🔗 Enter the PATH API URL (e.g., http://localhost:3070/v1): "},
+		{KeyPathApiKey, "🔑 Enter your PATH API KEY (used for PATH API & Toolkit Harness): "},
+		{KeyEthWalletAddress, "💼 Enter your Ethereum Wallet Address: "},
+		{KeyPoktWalletAddress, "🎒 Enter your POKT Wallet Address: "},
+		{KeyCmcApiKey, "🔑 Enter the CoinMarketCap API KEY: "},
 	}
 
-	clearConsole()
+	for _, p := range requiredPrompts {
+		clearConsole()
+		fmt.Print(p.prompt)
+		value, _ := reader.ReadString('\n')
+		value = strings.TrimSpace(value)
+		switch p.field {
+		case KeyPathApiUrl:
+			cfg.PathApiUrl = value
+		case KeyPathApiKey:
+			cfg.PathApiKey = value
+		case KeyEthWalletAddress:
+			cfg.EthWalletAddress = value
+		case KeyPoktWalletAddress:
+			cfg.PoktWalletAddress = value
+		case KeyCmcApiKey:
+			cfg.CMCAPIKey = value
+		}
+	}
 
-	fmt.Print("💱 Do you want to set optional currency variables?\nThese variables allow you to customize:\n- the fiat currency to convert the crypto balances to\n- the list of fiat currencies to fetch exchange rates for\n- the list of cryptocurrencies to display values for\n(yes/no): ")
+	// Optional configuration prompts using constant field names.
+	clearConsole()
+	fmt.Print("💱 Do you want to set optional currency variables?\nThese variables allow you to customize:\n- the fiat currency to convert crypto balances to\n- the list of fiat currencies to fetch exchange rates for\n- the list of cryptocurrencies to display values for\n(yes/no): ")
 	text, _ := reader.ReadString('\n')
-	text = strings.ReplaceAll(text, "\n", "")
+	text = strings.TrimSpace(text)
 	if strings.ToLower(text) == "yes" {
 		optionalPrompts := []struct {
-			key, description string
+			field  string
+			prompt string
 		}{
-			{"CRYPTO_FIAT_CONVERSION", "💱 Enter the fiat currency to convert the crypto balances to (default: USD):\n"},
-			{"CONVERT_CURRENCIES", "🔄 Enter a comma-separated list of fiat currencies to fetch exchange rates for (default: USD):\n"},
-			{"CRYPTO_VALUES", "💰 Enter a comma-separated list of cryptocurrencies to display values for (default: USDC,ETH,POKT):\n"},
+			{KeyCryptoFiatConversion, "💱 Enter the fiat currency to convert crypto balances to (default: USD): "},
+			{KeyConvertCurrencies, "🔄 Enter a comma-separated list of fiat currencies (default: USD): "},
+			{KeyCryptoValues, "💰 Enter a comma-separated list of cryptocurrencies (default: USDC,ETH,POKT): "},
 		}
 
-		for _, prompt := range optionalPrompts {
+		for _, p := range optionalPrompts {
 			clearConsole()
-			fmt.Print(prompt.description)
+			fmt.Print(p.prompt)
 			value, _ := reader.ReadString('\n')
-			value = strings.ReplaceAll(value, "\n", "")
+			value = strings.TrimSpace(value)
 			if value != "" {
-				_, err := file.WriteString(fmt.Sprintf("%s=%s\n", prompt.key, value))
-				if err != nil {
-					fmt.Println("Error writing to .env file:", err)
-					return
+				switch p.field {
+				case KeyCryptoFiatConversion:
+					cfg.CryptoFiatConversion = value
+				case KeyConvertCurrencies:
+					parts := strings.Split(value, ",")
+					for i, s := range parts {
+						parts[i] = strings.TrimSpace(s)
+					}
+					cfg.ConvertCurrencies = parts
+				case KeyCryptoValues:
+					parts := strings.Split(value, ",")
+					for i, s := range parts {
+						parts[i] = strings.TrimSpace(s)
+					}
+					cfg.CryptoValues = parts
 				}
-				os.Setenv(prompt.key, value)
 			}
 		}
 	}
 
 	clearConsole()
-	fmt.Println(".env file has been created and populated.")
+	fmt.Println("Creating YAML configuration file...")
+
+	data, err := yaml.Marshal(&cfg)
+	if err != nil {
+		fmt.Println("🚫 Error marshaling YAML:", err)
+		return
+	}
+
+	err = os.WriteFile(config.ConfigPath, data, 0600)
+	if err != nil {
+		fmt.Println("🚫 Error writing YAML configuration file:", err)
+		return
+	}
+
+	fmt.Println("YAML configuration file has been created and populated at", config.ConfigPath)
 }
 
 func clearConsole() {

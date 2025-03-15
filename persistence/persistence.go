@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/commoddity/bank-informer/env"
+	"github.com/commoddity/bank-informer/config"
 	badger "github.com/dgraph-io/badger/v3"
 )
 
@@ -28,7 +28,7 @@ type (
 )
 
 func NewPersistence() *Persistence {
-	opts := badger.DefaultOptions(env.DBPath)
+	opts := badger.DefaultOptions(config.DBPath)
 	opts.Logger = nil
 
 	db, err := badger.Open(opts)

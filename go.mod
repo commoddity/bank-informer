@@ -5,8 +5,8 @@ go 1.21.0
 require (
 	github.com/cheggaaa/pb/v3 v3.1.5
 	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/joho/godotenv v1.4.0
 	golang.org/x/text v0.13.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

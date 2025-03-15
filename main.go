@@ -5,101 +5,14 @@ import (
 
 	"github.com/commoddity/bank-informer/client"
 	"github.com/commoddity/bank-informer/cmc"
+	"github.com/commoddity/bank-informer/config"
 	"github.com/commoddity/bank-informer/csv"
-	"github.com/commoddity/bank-informer/env"
 	"github.com/commoddity/bank-informer/eth"
 	"github.com/commoddity/bank-informer/log"
 	"github.com/commoddity/bank-informer/persistence"
 	"github.com/commoddity/bank-informer/pokt"
 	"github.com/commoddity/bank-informer/setup"
-	"github.com/joho/godotenv"
 )
-
-const (
-	// Required env vars
-	grovePortalAppID     = "GROVE_PORTAL_APP_ID"
-	groveSecretKey       = "GROVE_SECRET_KEY"
-	ethWalletAddressEnv  = "ETH_WALLET_ADDRESS"
-	poktWalletAddressEnv = "POKT_WALLET_ADDRESS"
-	cmcAPIKeyEnv         = "CMC_API_KEY"
-	// Optional env vars
-	cryptoFiatConversionEnv = "CRYPTO_FIAT_CONVERSION"
-	convertCurrenciesEnv    = "CONVERT_CURRENCIES"
-	cryptoValuesEnv         = "CRYPTO_VALUES"
-	// Default currency values
-	defaultConvertCurrencies    = "USD"
-	defaultCryptoFiatConversion = "USD"
-	defaultCryptoValues         = "USDC,ETH,POKT"
-)
-
-type options struct {
-	ethConfig  eth.Config
-	poktConfig pokt.Config
-	cmcConfig  cmc.Config
-
-	cryptoFiatConversion string
-	convertCurrencies    []string
-	cryptoValues         []string
-}
-
-func gatherOptions() options {
-	// Validate that all converted currencies are valid
-	convertCurrencies := env.GetStringSlice(convertCurrenciesEnv, defaultConvertCurrencies)
-	for _, currency := range convertCurrencies {
-		if err := log.ValidateCurrencySymbol(currency, convertCurrenciesEnv); err != nil {
-			panic(err)
-		}
-	}
-	// Validate that cryptoFiatConversion is valid
-	cryptoFiatConversion := env.GetString(cryptoFiatConversionEnv, defaultCryptoFiatConversion)
-	if err := log.ValidateCurrencySymbol(cryptoFiatConversion, cryptoFiatConversionEnv); err != nil {
-		panic(err)
-	}
-	// Validate that Grove Portal App ID is valid
-	grovePortalAppID := env.MustGetString(grovePortalAppID)
-	if err := pokt.ValidatePortalAppID(grovePortalAppID); err != nil {
-		panic(err)
-	}
-	// Validate that Grove Secret Key is valid
-	groveSecretKey := env.GetString(groveSecretKey, "")
-	if groveSecretKey != "" {
-		if err := pokt.ValidateSecretKey(groveSecretKey); err != nil {
-			panic(err)
-		}
-	}
-
-	// Validate that ETH wallet address is valid
-	ethWalletAddress := env.MustGetString(ethWalletAddressEnv)
-	if err := eth.ValidateETHWalletAddress(ethWalletAddress); err != nil {
-		panic(err)
-	}
-
-	return options{
-		ethConfig: eth.Config{
-			PortalAppID:      grovePortalAppID,
-			SecretKey:        groveSecretKey,
-			ETHWalletAddress: ethWalletAddress,
-		},
-		poktConfig: pokt.Config{
-			PortalAppID:       grovePortalAppID,
-			SecretKey:         groveSecretKey,
-			POKTWalletAddress: env.MustGetString(poktWalletAddressEnv),
-		},
-		cmcConfig: cmc.Config{
-			CmcAPIKey:         env.MustGetString(cmcAPIKeyEnv),
-			ConvertCurrencies: convertCurrencies,
-		},
-
-		cryptoFiatConversion: cryptoFiatConversion,
-		convertCurrencies:    convertCurrencies,
-		cryptoValues:         env.GetStringSlice(cryptoValuesEnv, defaultCryptoValues),
-	}
-}
-
-func init() {
-	// Load .env file from the bank-informer dir in the user's home directory
-	_ = godotenv.Load(env.EnvPath)
-}
 
 // This program retrieves and logs the balances of ETH and POKT wallets.
 // It also fetches the exchange rates for a list of currencies and calculates
@@ -110,21 +23,24 @@ func main() {
 	setup.Start()
 
 	// Gather options from env vars
-	opts := gatherOptions()
+	config, err := config.LoadConfig()
+	if err != nil {
+		panic(err)
+	}
 
 	// Initialize persistence module
 	persistence := persistence.NewPersistence()
 	defer persistence.Close()
 
 	// Add 1 to chanLength to account for the call to get exchange rates
-	chanLength := len(opts.cryptoValues) + len(opts.convertCurrencies)
+	chanLength := len(config.CryptoValues) + len(config.ConvertCurrencies)
 	progressChan := make(chan string, chanLength)
 
 	// Initialize logger
 	logger := log.New(log.Config{
-		CryptoFiatConversion: opts.cryptoFiatConversion,
-		ConvertCurrencies:    opts.convertCurrencies,
-		CryptoValues:         opts.cryptoValues,
+		CryptoFiatConversion: config.CryptoFiatConversion,
+		ConvertCurrencies:    config.ConvertCurrencies,
+		CryptoValues:         config.CryptoValues,
 	}, persistence, progressChan, chanLength)
 
 	// Start the progress bar in a goroutine
@@ -132,7 +48,7 @@ func main() {
 
 	// Create a map to store balances
 	balances := make(map[string]float64)
-	for _, crypto := range opts.cryptoValues {
+	for _, crypto := range config.CryptoValues {
 		balances[crypto] = 0
 	}
 
@@ -140,14 +56,35 @@ func main() {
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
-	// Create clients
+	// Create ETH client
 	httpClient := client.New()
-	ethClient := eth.NewClient(opts.ethConfig, httpClient, progressChan, &mu, &wg)
-	poktClient := pokt.NewClient(opts.poktConfig, httpClient, progressChan, &mu, &wg)
-	cmcClient := cmc.NewClient(opts.cmcConfig, httpClient, progressChan, &mu, &wg)
+	ethConfig := eth.Config{
+		PathApiUrl:       config.PathApiUrl,
+		PathApiKey:       config.PathApiKey,
+		HttpClient:       httpClient,
+		ETHWalletAddress: config.EthWalletAddress,
+	}
+	ethClient := eth.NewClient(ethConfig, progressChan, &mu, &wg)
+
+	// Create POKT client
+	poktConfig := pokt.Config{
+		PathApiUrl:        config.PathApiUrl,
+		PathApiKey:        config.PathApiKey,
+		POKTWalletAddress: config.PoktWalletAddress,
+		HttpClient:        httpClient,
+	}
+	poktClient := pokt.NewClient(poktConfig, progressChan, &mu, &wg)
+
+	// Create CMC client
+	cmcConfig := cmc.Config{
+		CMCAPIKey:         config.CMCAPIKey,
+		ConvertCurrencies: config.ConvertCurrencies,
+		HttpClient:        httpClient,
+	}
+	cmcClient := cmc.NewClient(cmcConfig, progressChan, &mu, &wg)
 
 	// Retrieve and store ERC20 wallet balances through Grove Portal
-	err := ethClient.GetETHWalletBalances(balances)
+	err = ethClient.GetETHWalletBalances(balances)
 	if err != nil {
 		panic(err)
 	}
@@ -177,7 +114,7 @@ func main() {
 	logger.LogBalances(balances, fiatValues, exchangeRates)
 
 	// Write the balances, fiat values, and exchange rates to a CSV file
-	err = csv.WriteCryptoValuesToCSV(persistence, opts.cryptoValues)
+	err = csv.WriteCryptoValuesToCSV(persistence, config.CryptoValues)
 	if err != nil {
 		panic(err)
 	}
