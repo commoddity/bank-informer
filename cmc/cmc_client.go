@@ -13,13 +13,14 @@ import (
 const cmcURL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest?symbol=%s&convert=%s"
 
 type Config struct {
-	CmcAPIKey         string
+	CMCAPIKey         string
 	ConvertCurrencies []string
+	HttpClient        *http.Client
 }
 
 type Client struct {
 	Config            Config
-	HTTPClient        *http.Client
+	HttpClient        *http.Client
 	convertCurrencies []string
 	progressChan      chan string
 	mutex             *sync.Mutex
@@ -36,10 +37,10 @@ type cmcResult struct {
 	} `json:"data"`
 }
 
-func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
+func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
 	return &Client{
 		Config:            config,
-		HTTPClient:        httpClient,
+		HttpClient:        config.HttpClient,
 		convertCurrencies: config.ConvertCurrencies,
 		progressChan:      progressChan,
 		mutex:             mutex,
@@ -89,9 +90,9 @@ func (c *Client) getExchangeRates(balances map[string]float64, convertCurrency s
 
 	header := http.Header{}
 	header.Set("Accepts", "application/json")
-	header.Add("X-CMC_PRO_API_KEY", c.Config.CmcAPIKey)
+	header.Add("X-CMC_PRO_API_KEY", c.Config.CMCAPIKey)
 
-	cmcRes, err := client.Get[cmcResult](url, header, c.HTTPClient)
+	cmcRes, err := client.Get[cmcResult](url, header, c.HttpClient)
 	if err != nil {
 		return nil, err
 	}

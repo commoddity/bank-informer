@@ -11,10 +11,6 @@ import (
 	"github.com/commoddity/bank-informer/client"
 )
 
-const (
-	ethGrovePortalURL = "https://eth-mainnet.rpc.grove.city/v1/%s"
-)
-
 var erc20TokenConfig = map[string]func(*JsonRPCRequest, string) float64{
 	"USDC": func(requestBody *JsonRPCRequest, address string) float64 {
 		requestBody.Method = "eth_call"
@@ -106,15 +102,15 @@ func (r *JsonRPCResponse) UnmarshalJSON(data []byte) error {
 }
 
 type Config struct {
-	PortalAppID      string
-	SecretKey        string
+	PathApiUrl       string
+	PathApiKey       string
 	ETHWalletAddress string
-	HTTPClient       *http.Client
+	HttpClient       *http.Client
 }
 
 type Client struct {
 	url          string
-	secretKey    string
+	pathAPIKey   string
 	config       Config
 	httpClient   *http.Client
 	progressChan chan string
@@ -122,14 +118,12 @@ type Client struct {
 	waitGroup    *sync.WaitGroup
 }
 
-func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
-	url := fmt.Sprintf(ethGrovePortalURL, config.PortalAppID)
-
+func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
 	return &Client{
-		url:          url,
-		secretKey:    config.SecretKey,
+		url:          config.PathApiUrl,
+		pathAPIKey:   config.PathApiKey,
 		config:       config,
-		httpClient:   httpClient,
+		httpClient:   config.HttpClient,
 		progressChan: progressChan,
 		mutex:        mutex,
 		waitGroup:    waitGroup,
@@ -185,11 +179,9 @@ func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 	var lastErr error
 
 	header := http.Header{
-		"Content-Type": []string{"application/json"},
-	}
-
-	if c.secretKey != "" {
-		header["Authorization"] = []string{c.secretKey}
+		"Content-Type":      []string{"application/json"},
+		"Target-Service-Id": []string{"eth"},
+		"Authorization":     []string{c.pathAPIKey},
 	}
 
 	reqBody, roundValue, err := c.getJsonRPCRequest(erc20Token)

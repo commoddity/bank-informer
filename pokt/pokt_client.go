@@ -12,15 +12,16 @@ import (
 )
 
 type Config struct {
-	PortalAppID       string
-	SecretKey         string
+	PathApiUrl        string
+	PathApiKey        string
 	POKTWalletAddress string
+	HttpClient        *http.Client
 }
 
 type Client struct {
 	Config       Config
 	url          string
-	secretKey    string
+	pathAPIKey   string
 	httpClient   *http.Client
 	progressChan chan string
 	mutex        *sync.Mutex
@@ -31,14 +32,14 @@ type queryBalanceOutput struct {
 	Balance *big.Int `json:"balance"`
 }
 
-func NewClient(config Config, httpClient *http.Client, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
-	url := fmt.Sprintf("https://mainnet.rpc.grove.city/v1/%s/v1/query/balance", config.PortalAppID)
+func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
+	url := fmt.Sprintf("%s/v1/query/balance", config.PathApiUrl)
 
 	return &Client{
 		Config:       config,
 		url:          url,
-		secretKey:    config.SecretKey,
-		httpClient:   httpClient,
+		pathAPIKey:   config.PathApiKey,
+		httpClient:   config.HttpClient,
 		progressChan: progressChan,
 		mutex:        mutex,
 		waitGroup:    waitGroup,
@@ -127,11 +128,9 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 	header := http.Header{
-		"Content-Type": []string{"application/json"},
-	}
-
-	if c.secretKey != "" {
-		header["Authorization"] = []string{c.secretKey}
+		"Content-Type":      []string{"application/json"},
+		"Target-Service-Id": []string{"pocket"},
+		"Authorization":     []string{"test_api_key"},
 	}
 
 	params := map[string]any{

@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/commoddity/bank-informer/env"
+	"github.com/commoddity/bank-informer/config"
 	"github.com/commoddity/bank-informer/persistence"
 )
 
@@ -14,7 +14,7 @@ func WriteCryptoValuesToCSV(p *persistence.Persistence, cryptos []string) error 
 	currentDate := time.Now().Format("2006-01-02")
 
 	// Read existing records
-	records, err := readCSV(env.CSVPath)
+	records, err := readCSV(config.CSVPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -56,7 +56,7 @@ func WriteCryptoValuesToCSV(p *persistence.Persistence, cryptos []string) error 
 
 	// Rewrite the CSV file only if updated
 	if updated {
-		return writeCSV(env.CSVPath, records, !hasHeaders)
+		return writeCSV(config.CSVPath, records, !hasHeaders)
 	}
 
 	return nil
