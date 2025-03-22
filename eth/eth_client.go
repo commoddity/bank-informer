@@ -180,7 +180,7 @@ func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 
 	header := http.Header{
 		"Content-Type":      []string{"application/json"},
-		"Target-Service-Id": []string{"eth"},
+		"Target-Service-Id": []string{"F00C"},
 		"Authorization":     []string{c.pathAPIKey},
 	}
 

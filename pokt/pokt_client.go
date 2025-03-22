@@ -129,8 +129,8 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 	header := http.Header{
 		"Content-Type":      []string{"application/json"},
-		"Target-Service-Id": []string{"pocket"},
-		"Authorization":     []string{"test_api_key"},
+		"Target-Service-Id": []string{"F000"},
+		"Authorization":     []string{c.pathAPIKey},
 	}
 
 	params := map[string]any{
