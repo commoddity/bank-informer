@@ -2,7 +2,6 @@ package pokt
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -12,15 +11,16 @@ import (
 )
 
 type Config struct {
-	PathApiUrl        string
-	PathApiKey        string
-	POKTWalletAddress string
-	HttpClient        *http.Client
+	PathApiUrl         string
+	PathApiKey         string
+	POKTWalletAddress  string
+	PoktExchangeAmount int64
+	HttpClient         *http.Client
 }
 
 type Client struct {
 	Config       Config
-	url          string
+	baseUrl      string
 	pathAPIKey   string
 	httpClient   *http.Client
 	progressChan chan string
@@ -28,16 +28,25 @@ type Client struct {
 	waitGroup    *sync.WaitGroup
 }
 
+type Balance struct {
+	Denom  string `json:"denom"`
+	Amount string `json:"amount"`
+}
+
 type queryBalanceOutput struct {
-	Balance *big.Int `json:"balance"`
+	Balances   []Balance `json:"balances"`
+	Pagination struct {
+		NextKey string `json:"next_key"`
+		Total   string `json:"total"`
+	} `json:"pagination"`
 }
 
 func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
-	url := fmt.Sprintf("%s/v1/query/balance", config.PathApiUrl)
+	baseUrl := fmt.Sprintf("%s/cosmos/bank/v1beta1/balances", config.PathApiUrl)
 
 	return &Client{
 		Config:       config,
-		url:          url,
+		baseUrl:      baseUrl,
 		pathAPIKey:   config.PathApiKey,
 		httpClient:   config.HttpClient,
 		progressChan: progressChan,
@@ -116,6 +125,11 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	balanceFloat.Quo(balanceFloat, big.NewFloat(1e6))
 	balanceValue, _ := balanceFloat.Float64()
 
+	// Add exchange amount if configured
+	if c.Config.PoktExchangeAmount > 0 {
+		balanceValue += float64(c.Config.PoktExchangeAmount)
+	}
+
 	c.progressChan <- "POKT"
 
 	// Modify the passed map with the balance
@@ -127,25 +141,29 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 }
 
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
+	url := fmt.Sprintf("%s/%s", c.baseUrl, address)
+
 	header := http.Header{
-		"Content-Type":      []string{"application/json"},
-		"Target-Service-Id": []string{"F000"},
+		"Target-Service-Id": []string{"pocket"},
 		"Authorization":     []string{c.pathAPIKey},
 	}
 
-	params := map[string]any{
-		"address": address,
-	}
-
-	reqBody, err := json.Marshal(params)
+	resp, err := client.Get[queryBalanceOutput](url, header, c.httpClient)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := client.Post[queryBalanceOutput](c.url, header, reqBody, c.httpClient)
-	if err != nil {
-		return nil, err
+	// Find the upokt balance in the balances array
+	for _, balance := range resp.Balances {
+		if balance.Denom == "upokt" {
+			amount := new(big.Int)
+			amount, ok := amount.SetString(balance.Amount, 10)
+			if !ok {
+				return nil, fmt.Errorf("failed to parse balance amount: %s", balance.Amount)
+			}
+			return amount, nil
+		}
 	}
 
-	return resp.Balance, nil
+	return nil, fmt.Errorf("upokt balance not found")
 }

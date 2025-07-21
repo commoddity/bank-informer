@@ -34,6 +34,7 @@ type Config struct {
 	EthWalletAddress     string   `yaml:"eth_wallet_address"`     // required
 	PoktWalletAddress    string   `yaml:"pokt_wallet_address"`    // required
 	CMCAPIKey            string   `yaml:"cmc_api_key"`            // required
+	PoktExchangeAmount   int64    `yaml:"pokt_exchange_amount"`   // optional
 	CryptoFiatConversion string   `yaml:"crypto_fiat_conversion"` // optional, defaults to "USD"
 	ConvertCurrencies    []string `yaml:"convert_currencies"`     // optional, defaults to "USD"
 	CryptoValues         []string `yaml:"crypto_values"`          // optional, defaults to "USDC,ETH,POKT"

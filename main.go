@@ -68,10 +68,11 @@ func main() {
 
 	// Create POKT client
 	poktConfig := pokt.Config{
-		PathApiUrl:        config.PathApiUrl,
-		PathApiKey:        config.PathApiKey,
-		POKTWalletAddress: config.PoktWalletAddress,
-		HttpClient:        httpClient,
+		PathApiUrl:         config.PathApiUrl,
+		PathApiKey:         config.PathApiKey,
+		POKTWalletAddress:  config.PoktWalletAddress,
+		HttpClient:         httpClient,
+		PoktExchangeAmount: config.PoktExchangeAmount,
 	}
 	poktClient := pokt.NewClient(poktConfig, progressChan, &mu, &wg)
 
