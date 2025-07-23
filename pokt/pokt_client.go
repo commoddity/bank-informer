@@ -125,11 +125,7 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	balanceFloat.Quo(balanceFloat, big.NewFloat(1e6))
 	balanceValue, _ := balanceFloat.Float64()
 
-	// Add exchange amount if configured
-	if c.Config.PoktExchangeAmount > 0 {
-		balanceValue += float64(c.Config.PoktExchangeAmount)
-	}
-
+	// Don't add exchange amount here - it will be handled separately in logging
 	c.progressChan <- "POKT"
 
 	// Modify the passed map with the balance
@@ -138,6 +134,11 @@ func (c *Client) GetWalletBalance(balances map[string]float64) error {
 	c.mutex.Unlock()
 
 	return nil
+}
+
+// GetExchangeAmount returns the configured exchange amount
+func (c *Client) GetExchangeAmount() int64 {
+	return c.Config.PoktExchangeAmount
 }
 
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {

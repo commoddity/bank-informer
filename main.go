@@ -41,6 +41,7 @@ func main() {
 		CryptoFiatConversion: config.CryptoFiatConversion,
 		ConvertCurrencies:    config.ConvertCurrencies,
 		CryptoValues:         config.CryptoValues,
+		PoktExchangeAmount:   config.PoktExchangeAmount,
 	}, persistence, progressChan, chanLength)
 
 	// Start the progress bar in a goroutine

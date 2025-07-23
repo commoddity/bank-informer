@@ -18,6 +18,7 @@ type Logger struct {
 	cryptoFiatConversion string
 	cryptoValues         []string
 	convertCurrencies    []string
+	poktExchangeAmount   int64
 	persistence          *persistence.Persistence
 	progressChan         chan string
 	chanLength           int
@@ -27,14 +28,16 @@ type Config struct {
 	CryptoFiatConversion string
 	CryptoValues         []string
 	ConvertCurrencies    []string
+	PoktExchangeAmount   int64
 }
 
-// Modified New function to include Persistence
+// Modified New function to include Persistence and POKT exchange amount
 func New(config Config, persistence *persistence.Persistence, progressChan chan string, chanLength int) *Logger {
 	return &Logger{
 		cryptoFiatConversion: config.CryptoFiatConversion,
 		cryptoValues:         config.CryptoValues,
 		convertCurrencies:    config.ConvertCurrencies,
+		poktExchangeAmount:   config.PoktExchangeAmount,
 		persistence:          persistence,
 		progressChan:         progressChan,
 		chanLength:           chanLength,
@@ -216,13 +219,72 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatCryptoFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", poktFiatTotal), l.cryptoFiatConversion)
 	}
 
+	// Display exchange balances section if POKT exchange amount is configured
+	exchangeFiatValues := make(map[string]float64)
+	if l.poktExchangeAmount > 0 {
+		fmt.Println("\n<--------- 🌐 Exchange Balances 🌐 --------->")
+
+		exchangeAmountFloat := float64(l.poktExchangeAmount)
+		if fiatValue, ok := exchangeRates[l.cryptoFiatConversion]["POKT"]; ok {
+			exchangeFiatBalance := exchangeAmountFloat * fiatValue
+
+			fmt.Printf("POKT - %s @ %s%s = %s%s %s",
+				formatCryptoFloat("POKT", exchangeAmountFloat),
+				fiatSymbols[l.cryptoFiatConversion],
+				formatFiatFloat("POKT", fiatValue),
+				fiatSymbols[l.cryptoFiatConversion],
+				formatFiatFloat("", exchangeFiatBalance),
+				l.cryptoFiatConversion)
+
+			// Fetch average values from the previous day for exchange amount
+			previousKey := fmt.Sprintf("POKT-EXCHANGE-%s", previousDate)
+			avgValues, err := l.persistence.GetAverageCryptoValues(previousKey)
+			if err != nil {
+				fmt.Printf(" %sNo data%s\n", colorBlue, colorReset)
+			} else {
+				difference := exchangeFiatBalance - avgValues.FiatBalance
+				color := getColorForDifference(difference)
+
+				if difference == 0 {
+					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
+				} else {
+					fmt.Printf(" %s%s%s\n", color, formatFiatFloat("", difference), colorReset)
+				}
+
+				fiatTotal += avgValues.FiatBalance
+			}
+
+			// Store exchange amount data
+			key := fmt.Sprintf("POKT-EXCHANGE-%s", currentDate)
+			cryptoVal := persistence.CryptoValues{
+				CryptoBalance: exchangeAmountFloat,
+				FiatValue:     fiatValue,
+				FiatBalance:   exchangeFiatBalance,
+			}
+
+			err = l.persistence.WriteCryptoValues(key, cryptoVal)
+			if err != nil {
+				fmt.Printf("Error writing exchange crypto values to database: %s\n", err)
+			}
+
+			// Calculate exchange fiat values for all currencies
+			for _, fiat := range l.convertCurrencies {
+				if exchangeRate, ok := exchangeRates[fiat]["POKT"]; ok {
+					exchangeFiatValues[fiat] = exchangeAmountFloat * exchangeRate
+				}
+			}
+		}
+	}
+
 	fmt.Println("\n<--------- 💰 Fiat Total Balances 💰 --------->")
-	defaultFiatBalance := fiatValues[l.cryptoFiatConversion]
+	defaultFiatBalance := fiatValues[l.cryptoFiatConversion] + exchangeFiatValues[l.cryptoFiatConversion]
 	differenceInDefaultFiat := defaultFiatBalance - fiatTotal
 
 	for _, fiat := range l.convertCurrencies {
 		if balance, ok := fiatValues[fiat]; ok {
-			fmt.Printf("%s %s - %s%s", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFiatFloat("", balance))
+			// Add exchange amounts to total balance
+			totalBalance := balance + exchangeFiatValues[fiat]
+			fmt.Printf("%s %s - %s%s", fiatEmojis[fiat], fiat, fiatSymbols[fiat], formatFiatFloat("", totalBalance))
 
 			if fiat == l.cryptoFiatConversion {
 				color := getColorForDifference(differenceInDefaultFiat)
@@ -232,7 +294,8 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 					fmt.Printf(" %s%s%s%s\n", color, fiatSymbols[fiat], formatFiatFloat("", differenceInDefaultFiat), colorReset)
 				}
 			} else {
-				exchangeRate := balance / defaultFiatBalance
+				totalBalanceInDefaultFiat := fiatValues[l.cryptoFiatConversion] + exchangeFiatValues[l.cryptoFiatConversion]
+				exchangeRate := totalBalance / totalBalanceInDefaultFiat
 				difference := differenceInDefaultFiat * exchangeRate
 				color := getColorForDifference(difference)
 				if difference == 0 {
