@@ -54,6 +54,8 @@ type (
 		Error   *JsonRPCError `json:"error,omitempty"`
 	}
 
+	JsonRPCBatchResponse []JsonRPCResponse
+
 	JsonRPCError struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
@@ -138,43 +140,63 @@ func ValidateETHWalletAddress(address string) error {
 }
 
 func (c *Client) GetETHWalletBalances(balances map[string]float64) error {
-	errorChan := make(chan error, len(balances))
+	// Prepare batch request for all tokens
+	var batchRequest []JsonRPCRequest
+	tokenIDMap := make(map[int]string)
+	idCounter := 1
 
 	for token := range balances {
 		if _, ok := erc20TokenConfig[token]; !ok {
 			continue
 		}
 
-		c.waitGroup.Add(1)
-		go func(token string) {
-			defer c.waitGroup.Done()
+		reqBody := JsonRPCRequest{Jsonrpc: "2.0", Id: idCounter}
+		if getConfigFunc, ok := erc20TokenConfig[token]; ok {
+			getConfigFunc(&reqBody, c.config.ETHWalletAddress)
+		}
 
-			balance, err := c.getETHWalletBalance(token)
-			if err != nil {
-				errorChan <- err
-				return
-			}
-
-			c.mutex.Lock()
-			balances[token] = balance
-			c.mutex.Unlock()
-
-			c.progressChan <- token
-		}(token)
+		batchRequest = append(batchRequest, reqBody)
+		tokenIDMap[idCounter] = token
+		idCounter++
 	}
 
-	c.waitGroup.Wait()
-	close(errorChan)
+	if len(batchRequest) == 0 {
+		return nil
+	}
 
-	// Check if there were any errors
-	if len(errorChan) > 0 {
-		return <-errorChan
+	// Execute batch request
+	batchResponse, err := c.executeBatchRequest(batchRequest)
+	if err != nil {
+		return err
+	}
+
+	// Process responses and update balances
+	for _, response := range batchResponse {
+		token, exists := tokenIDMap[response.Id]
+		if !exists {
+			continue
+		}
+
+		if response.Error != nil {
+			return fmt.Errorf("error for token %s: %s", token, response.Error.Message)
+		}
+
+		erc20WalletBalance, err := c.decodeHexToFloat64(response.Result)
+		if err != nil {
+			return fmt.Errorf("failed to decode balance for token %s: %w", token, err)
+		}
+
+		// Get the round value for this token
+		roundValue := c.getRoundValueForToken(token)
+		balances[token] = erc20WalletBalance / roundValue
+
+		c.progressChan <- token
 	}
 
 	return nil
 }
 
-func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
+func (c *Client) executeBatchRequest(batchRequest []JsonRPCRequest) (JsonRPCBatchResponse, error) {
 	const maxRetries = 5
 	var lastErr error
 
@@ -184,45 +206,31 @@ func (c *Client) getETHWalletBalance(erc20Token string) (float64, error) {
 		"Authorization":     []string{c.pathAPIKey},
 	}
 
-	reqBody, roundValue, err := c.getJsonRPCRequest(erc20Token)
+	jsonData, err := json.Marshal(batchRequest)
 	if err != nil {
-		return 0, err
+		return nil, fmt.Errorf("failed to marshal batch request: %w", err)
 	}
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		resp, err := client.Post[JsonRPCResponse](c.url, header, reqBody, c.httpClient)
+		resp, err := client.Post[JsonRPCBatchResponse](c.url, header, jsonData, c.httpClient)
 		if err != nil {
 			lastErr = err
 			continue
 		}
 
-		erc20WalletBalance, err := c.decodeHexToFloat64(resp.Result)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		return erc20WalletBalance / roundValue, nil
+		return resp, nil
 	}
 
-	return 0, fmt.Errorf("failed to get wallet balance after %d attempts: %w", maxRetries, lastErr)
+	return nil, fmt.Errorf("failed to execute batch request after %d attempts: %w", maxRetries, lastErr)
 }
 
-func (c *Client) getJsonRPCRequest(token string) ([]byte, float64, error) {
-	requestBody := &JsonRPCRequest{Jsonrpc: "2.0", Id: 1}
-
-	var roundValue float64
-
+func (c *Client) getRoundValueForToken(token string) float64 {
 	if getConfigFunc, ok := erc20TokenConfig[token]; ok {
-		roundValue = getConfigFunc(requestBody, c.config.ETHWalletAddress)
+		// Create a dummy request to get the round value
+		dummyRequest := &JsonRPCRequest{}
+		return getConfigFunc(dummyRequest, c.config.ETHWalletAddress)
 	}
-
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return jsonData, roundValue, nil
+	return 1.0
 }
 
 func (c *Client) decodeHexToFloat64(hexValue string) (float64, error) {
