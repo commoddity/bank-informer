@@ -168,13 +168,21 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	poktTotal := 0.0
 	poktFiatTotal := 0.0
 
+	// Calculate alignment widths for proper formatting
+	cryptoWidth, balanceWidth, fiatValueWidth, fiatBalanceWidth := l.calculateAlignmentWidths(balances, exchangeRates)
+
 	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
 			fiatBalance := balance * fiatValue
 
-			fmt.Printf("%s - %s @ %s%s = %s%s %s", crypto, formatCryptoFloat(crypto, balance), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat(crypto, fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", fiatBalance), l.cryptoFiatConversion)
+			fmt.Printf("%-*s - %*s @ %s%-*s = %s%-*s %s",
+				cryptoWidth, crypto,
+				balanceWidth, formatCryptoFloat(crypto, balance),
+				fiatSymbols[l.cryptoFiatConversion], fiatValueWidth, formatFiatFloat(crypto, fiatValue),
+				fiatSymbols[l.cryptoFiatConversion], fiatBalanceWidth, formatFiatFloat("", fiatBalance),
+				l.cryptoFiatConversion)
 
 			// Fetch average values from the previous day
 			previousKey := fmt.Sprintf("%s-%s", crypto, previousDate)
@@ -216,7 +224,12 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	hasMultiplePokts := slices.Contains(l.cryptoValues, "WPOKT") && slices.Contains(l.cryptoValues, "POKT")
 	if hasMultiplePokts && poktTotal > 0 {
 		fiatValue := exchangeRates[l.cryptoFiatConversion]["POKT"]
-		fmt.Printf("\n%s - %s @ %s%s = %s%s %s\n", "POKT Total", formatCryptoFloat("POKT", poktTotal), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", fiatValue), fiatSymbols[l.cryptoFiatConversion], formatFiatFloat("", poktFiatTotal), l.cryptoFiatConversion)
+		fmt.Printf("\n%-*s - %*s @ %s%-*s = %s%-*s %s\n",
+			cryptoWidth, "POKT Total",
+			balanceWidth, formatCryptoFloat("POKT", poktTotal),
+			fiatSymbols[l.cryptoFiatConversion], fiatValueWidth, formatFiatFloat("", fiatValue),
+			fiatSymbols[l.cryptoFiatConversion], fiatBalanceWidth, formatFiatFloat("", poktFiatTotal),
+			l.cryptoFiatConversion)
 	}
 
 	// Display exchange balances section if POKT exchange amount is configured
@@ -228,12 +241,11 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 		if fiatValue, ok := exchangeRates[l.cryptoFiatConversion]["POKT"]; ok {
 			exchangeFiatBalance := exchangeAmountFloat * fiatValue
 
-			fmt.Printf("POKT - %s @ %s%s = %s%s %s",
-				formatCryptoFloat("POKT", exchangeAmountFloat),
-				fiatSymbols[l.cryptoFiatConversion],
-				formatFiatFloat("POKT", fiatValue),
-				fiatSymbols[l.cryptoFiatConversion],
-				formatFiatFloat("", exchangeFiatBalance),
+			fmt.Printf("%-*s - %*s @ %s%-*s = %s%-*s %s",
+				cryptoWidth, "POKT",
+				balanceWidth, formatCryptoFloat("POKT", exchangeAmountFloat),
+				fiatSymbols[l.cryptoFiatConversion], fiatValueWidth, formatFiatFloat("POKT", fiatValue),
+				fiatSymbols[l.cryptoFiatConversion], fiatBalanceWidth, formatFiatFloat("", exchangeFiatBalance),
 				l.cryptoFiatConversion)
 
 			// Fetch average values from the previous day for exchange amount
@@ -326,6 +338,75 @@ func formatFiatFloat(crypto string, num float64) string {
 	p := message.NewPrinter(language.English)
 	format := fmt.Sprintf("%%.%df", roundValue)
 	return p.Sprintf(format, num)
+}
+
+func (l *Logger) calculateAlignmentWidths(balances map[string]float64, exchangeRates map[string]map[string]float64) (int, int, int, int) {
+	maxCryptoWidth := 0
+	maxBalanceWidth := 0
+	maxFiatValueWidth := 0
+	maxFiatBalanceWidth := 0
+
+	// Also consider "POKT Total" for alignment
+	if len("POKT Total") > maxCryptoWidth {
+		maxCryptoWidth = len("POKT Total")
+	}
+
+	for _, crypto := range l.cryptoValues {
+		if balance, ok := balances[crypto]; ok {
+			// Crypto name width
+			if len(crypto) > maxCryptoWidth {
+				maxCryptoWidth = len(crypto)
+			}
+
+			// Balance width
+			balanceStr := formatCryptoFloat(crypto, balance)
+			if len(balanceStr) > maxBalanceWidth {
+				maxBalanceWidth = len(balanceStr)
+			}
+
+			// Fiat value width
+			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
+			fiatValueStr := formatFiatFloat(crypto, fiatValue)
+			if len(fiatValueStr) > maxFiatValueWidth {
+				maxFiatValueWidth = len(fiatValueStr)
+			}
+
+			// Fiat balance width
+			fiatBalance := balance * fiatValue
+			fiatBalanceStr := formatFiatFloat("", fiatBalance)
+			if len(fiatBalanceStr) > maxFiatBalanceWidth {
+				maxFiatBalanceWidth = len(fiatBalanceStr)
+			}
+		}
+	}
+
+	// Also consider POKT exchange amounts for alignment if configured
+	if l.poktExchangeAmount > 0 {
+		if fiatValue, ok := exchangeRates[l.cryptoFiatConversion]["POKT"]; ok {
+			exchangeAmountFloat := float64(l.poktExchangeAmount)
+
+			// Check exchange amount balance width
+			exchangeBalanceStr := formatCryptoFloat("POKT", exchangeAmountFloat)
+			if len(exchangeBalanceStr) > maxBalanceWidth {
+				maxBalanceWidth = len(exchangeBalanceStr)
+			}
+
+			// Check exchange fiat value width
+			exchangeFiatValueStr := formatFiatFloat("POKT", fiatValue)
+			if len(exchangeFiatValueStr) > maxFiatValueWidth {
+				maxFiatValueWidth = len(exchangeFiatValueStr)
+			}
+
+			// Check exchange fiat balance width
+			exchangeFiatBalance := exchangeAmountFloat * fiatValue
+			exchangeFiatBalanceStr := formatFiatFloat("", exchangeFiatBalance)
+			if len(exchangeFiatBalanceStr) > maxFiatBalanceWidth {
+				maxFiatBalanceWidth = len(exchangeFiatBalanceStr)
+			}
+		}
+	}
+
+	return maxCryptoWidth, maxBalanceWidth, maxFiatValueWidth, maxFiatBalanceWidth
 }
 
 func getColorForDifference(difference float64) string {
