@@ -157,6 +157,13 @@ func (l *Logger) RunProgressBar() {
 	}
 }
 
+type cryptoBalance struct {
+	name        string
+	balance     float64
+	fiatValue   float64
+	fiatBalance float64
+}
+
 func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]float64, exchangeRates map[string]map[string]float64) {
 	currentDate := time.Now().Format("2006-01-02") // format: YYYY-MM-DD
 	previousDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
@@ -168,56 +175,77 @@ func (l *Logger) LogBalances(balances map[string]float64, fiatValues map[string]
 	poktTotal := 0.0
 	poktFiatTotal := 0.0
 
-	// Calculate alignment widths for proper formatting
-	cryptoWidth, balanceWidth, fiatValueWidth, fiatBalanceWidth := l.calculateAlignmentWidths(balances, exchangeRates)
-
-	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
+	// Prepare crypto balances for sorting
+	var cryptoBalances []cryptoBalance
 	for _, crypto := range l.cryptoValues {
 		if balance, ok := balances[crypto]; ok {
 			fiatValue := exchangeRates[l.cryptoFiatConversion][crypto]
 			fiatBalance := balance * fiatValue
+			cryptoBalances = append(cryptoBalances, cryptoBalance{
+				name:        crypto,
+				balance:     balance,
+				fiatValue:   fiatValue,
+				fiatBalance: fiatBalance,
+			})
+		}
+	}
 
-			fmt.Printf("%-*s - %*s @ %s%-*s = %s%-*s %s",
-				cryptoWidth, crypto,
-				balanceWidth, formatCryptoFloat(crypto, balance),
-				fiatSymbols[l.cryptoFiatConversion], fiatValueWidth, formatFiatFloat(crypto, fiatValue),
-				fiatSymbols[l.cryptoFiatConversion], fiatBalanceWidth, formatFiatFloat("", fiatBalance),
-				l.cryptoFiatConversion)
+	// Sort by fiat balance in descending order
+	slices.SortFunc(cryptoBalances, func(a, b cryptoBalance) int {
+		if a.fiatBalance > b.fiatBalance {
+			return -1
+		}
+		if a.fiatBalance < b.fiatBalance {
+			return 1
+		}
+		return 0
+	})
 
-			// Fetch average values from the previous day
-			previousKey := fmt.Sprintf("%s-%s", crypto, previousDate)
-			avgValues, err := l.persistence.GetAverageCryptoValues(previousKey)
-			if err != nil {
-				fmt.Printf(" %sNo data%s\n", colorBlue, colorReset)
+	// Calculate alignment widths for proper formatting
+	cryptoWidth, balanceWidth, fiatValueWidth, fiatBalanceWidth := l.calculateAlignmentWidths(balances, exchangeRates)
+
+	fmt.Println("\n<--------- 🔐 Crypto Balances 🔐 --------->")
+	for _, cb := range cryptoBalances {
+		fmt.Printf("%-*s - %*s @ %s%-*s = %s%-*s %s",
+			cryptoWidth, cb.name,
+			balanceWidth, formatCryptoFloat(cb.name, cb.balance),
+			fiatSymbols[l.cryptoFiatConversion], fiatValueWidth, formatFiatFloat(cb.name, cb.fiatValue),
+			fiatSymbols[l.cryptoFiatConversion], fiatBalanceWidth, formatFiatFloat("", cb.fiatBalance),
+			l.cryptoFiatConversion)
+
+		// Fetch average values from the previous day
+		previousKey := fmt.Sprintf("%s-%s", cb.name, previousDate)
+		avgValues, err := l.persistence.GetAverageCryptoValues(previousKey)
+		if err != nil {
+			fmt.Printf(" %sNo data%s\n", colorBlue, colorReset)
+		} else {
+			difference := cb.fiatBalance - avgValues.FiatBalance
+			color := getColorForDifference(difference)
+
+			if difference == 0 {
+				fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
 			} else {
-				difference := fiatBalance - avgValues.FiatBalance
-				color := getColorForDifference(difference)
-
-				if difference == 0 {
-					fmt.Printf(" %s%s%s\n", color, "0.00", colorReset)
-				} else {
-					fmt.Printf(" %s%s%s\n", color, formatFiatFloat("", difference), colorReset)
-				}
-
-				fiatTotal += avgValues.FiatBalance
+				fmt.Printf(" %s%s%s\n", color, formatFiatFloat("", difference), colorReset)
 			}
 
-			if crypto == "POKT" || crypto == "WPOKT" {
-				poktTotal += balance
-				poktFiatTotal += fiatBalance
-			}
+			fiatTotal += avgValues.FiatBalance
+		}
 
-			key := fmt.Sprintf("%s-%s", crypto, currentDate)
-			cryptoVal := persistence.CryptoValues{
-				CryptoBalance: balance,
-				FiatValue:     fiatValue,
-				FiatBalance:   fiatBalance,
-			}
+		if cb.name == "POKT" || cb.name == "WPOKT" {
+			poktTotal += cb.balance
+			poktFiatTotal += cb.fiatBalance
+		}
 
-			err = l.persistence.WriteCryptoValues(key, cryptoVal)
-			if err != nil {
-				fmt.Printf("Error writing crypto values to database: %s\n", err)
-			}
+		key := fmt.Sprintf("%s-%s", cb.name, currentDate)
+		cryptoVal := persistence.CryptoValues{
+			CryptoBalance: cb.balance,
+			FiatValue:     cb.fiatValue,
+			FiatBalance:   cb.fiatBalance,
+		}
+
+		err = l.persistence.WriteCryptoValues(key, cryptoVal)
+		if err != nil {
+			fmt.Printf("Error writing crypto values to database: %s\n", err)
 		}
 	}
 
