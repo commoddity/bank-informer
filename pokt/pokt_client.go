@@ -8,20 +8,23 @@ import (
 	"sync"
 
 	"github.com/commoddity/bank-informer/client"
+	"github.com/commoddity/bank-informer/config"
 )
 
 type Config struct {
-	PathApiUrl         string
-	PathApiKey         string
+	RpcApiKey          string
 	POKTWalletAddress  string
 	PoktExchangeAmount int64
 	HttpClient         *http.Client
 }
 
+const poketSubdomain = "pocket"
+
 type Client struct {
 	Config       Config
+	subdomain    string
 	baseUrl      string
-	pathAPIKey   string
+	rpcAPIKey    string
 	httpClient   *http.Client
 	progressChan chan string
 	mutex        *sync.Mutex
@@ -41,18 +44,26 @@ type queryBalanceOutput struct {
 	} `json:"pagination"`
 }
 
-func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
-	baseUrl := fmt.Sprintf("%s/cosmos/bank/v1beta1/balances", config.PathApiUrl)
+func NewClient(cfg Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
+	baseURL := fmt.Sprintf(config.RPCURLTemplate, poketSubdomain)
+	baseUrl := fmt.Sprintf("%s/cosmos/bank/v1beta1/balances", baseURL)
 
 	return &Client{
-		Config:       config,
+		Config: cfg,
+
+		subdomain:    poketSubdomain,
 		baseUrl:      baseUrl,
-		pathAPIKey:   config.PathApiKey,
-		httpClient:   config.HttpClient,
+		rpcAPIKey:    cfg.RpcApiKey,
+		httpClient:   cfg.HttpClient,
 		progressChan: progressChan,
 		mutex:        mutex,
 		waitGroup:    waitGroup,
 	}
+}
+
+// GetBaseURL returns the base URL being used for POKT RPC requests
+func (c *Client) GetBaseURL() string {
+	return c.baseUrl
 }
 
 func ValidatePortalAppID(id string) error {
@@ -144,9 +155,9 @@ func (c *Client) GetExchangeAmount() int64 {
 func (c *Client) getPOKTWalletBalance(address string) (*big.Int, error) {
 	url := fmt.Sprintf("%s/%s", c.baseUrl, address)
 
-	header := http.Header{
-		"Target-Service-Id": []string{"pocket"},
-		"Authorization":     []string{c.pathAPIKey},
+	header := http.Header{}
+	if c.rpcAPIKey != "" {
+		header["Authorization"] = []string{c.rpcAPIKey}
 	}
 
 	resp, err := client.Get[queryBalanceOutput](url, header, c.httpClient)

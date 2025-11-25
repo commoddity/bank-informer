@@ -15,8 +15,7 @@ import (
 
 // Define the field names as constants in snake_case, as sourced from .bankinformer.config.yaml and config.go.
 const (
-	KeyPathApiUrl           = "path_api_url"
-	KeyPathApiKey           = "path_api_key"
+	KeyRpcApiKey            = "rpc_api_key"
 	KeyEthWalletAddress     = "eth_wallet_address"
 	KeyPoktWalletAddress    = "pokt_wallet_address"
 	KeyCmcApiKey            = "cmc_api_key"
@@ -38,7 +37,7 @@ func checkConfigFile() {
 
 func promptUser() {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("👋 Welcome to the Bank Informer app! It looks like you're running the app for the first time.\n❓ We need to gather a few variables to create your YAML configuration file for the PATH API & Toolkit Harness.\nWould you like to proceed? (yes/no): ")
+	fmt.Print("👋 Welcome to the Bank Informer app! It looks like you're running the app for the first time.\n❓ We need to gather a few variables to create your YAML configuration file.\nWould you like to proceed? (yes/no): ")
 
 	text, _ := reader.ReadString('\n')
 	text = strings.TrimSpace(text)
@@ -63,8 +62,6 @@ func createConfigFile() {
 		field  string
 		prompt string
 	}{
-		{KeyPathApiUrl, "🔗 Enter the PATH API URL (e.g., http://localhost:3070/v1): "},
-		{KeyPathApiKey, "🔑 Enter your PATH API KEY (used for PATH API & Toolkit Harness): "},
 		{KeyEthWalletAddress, "💼 Enter your Ethereum Wallet Address: "},
 		{KeyPoktWalletAddress, "🎒 Enter your POKT Wallet Address: "},
 		{KeyCmcApiKey, "🔑 Enter the CoinMarketCap API KEY: "},
@@ -76,10 +73,6 @@ func createConfigFile() {
 		value, _ := reader.ReadString('\n')
 		value = strings.TrimSpace(value)
 		switch p.field {
-		case KeyPathApiUrl:
-			cfg.PathApiUrl = value
-		case KeyPathApiKey:
-			cfg.PathApiKey = value
 		case KeyEthWalletAddress:
 			cfg.EthWalletAddress = value
 		case KeyPoktWalletAddress:
@@ -87,6 +80,15 @@ func createConfigFile() {
 		case KeyCmcApiKey:
 			cfg.CMCAPIKey = value
 		}
+	}
+
+	// Optional RPC API key prompt
+	clearConsole()
+	fmt.Print("🔑 Enter your RPC API KEY (optional, for Pocket Network API authentication): ")
+	value, _ := reader.ReadString('\n')
+	value = strings.TrimSpace(value)
+	if value != "" {
+		cfg.RpcApiKey = value
 	}
 
 	// Optional configuration prompts using constant field names.

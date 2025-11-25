@@ -18,6 +18,10 @@ const (
 	defaultCryptoFiatConversion = "USD"
 	defaultConvertCurrencies    = "USD"
 	defaultCryptoValues         = "USDC,ETH,POKT"
+
+	// RPCURLTemplate is the template for building Pocket Network API URLs
+	// Format: https://<SUBDOMAIN>.api.pocket.network
+	RPCURLTemplate = "https://%s.api.pocket.network"
 )
 
 var (
@@ -29,8 +33,7 @@ var (
 
 // Config represents the configuration settings for the Bank Informer service.
 type Config struct {
-	PathApiUrl           string   `yaml:"path_api_url"`           // required
-	PathApiKey           string   `yaml:"path_api_key"`           // required
+	RpcApiKey            string   `yaml:"rpc_api_key"`            // optional
 	EthWalletAddress     string   `yaml:"eth_wallet_address"`     // required
 	PoktWalletAddress    string   `yaml:"pokt_wallet_address"`    // required
 	CMCAPIKey            string   `yaml:"cmc_api_key"`            // required
@@ -71,9 +74,6 @@ func LoadConfig() (*Config, error) {
 // validateAndSetDefaults checks that all required fields are provided,
 // and assigns default values to any missing optional fields.
 func (c *Config) validateAndSetDefaults() error {
-	if c.PathApiKey == "" {
-		return fmt.Errorf("missing required field: path_api_key")
-	}
 	if c.EthWalletAddress == "" {
 		return fmt.Errorf("missing required field: eth_wallet_address")
 	}

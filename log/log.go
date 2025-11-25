@@ -129,6 +129,13 @@ func ValidateCurrencySymbol(currency, envVar string) error {
 
 /* ------------ Log Funcs ------------ */
 
+// LogURLs logs the URLs being used for RPC requests
+func (l *Logger) LogURLs(ethURL, poktURL string) {
+	fmt.Println("🌍 Using URLs:")
+	fmt.Printf("    - ETH: %s\n", ethURL)
+	fmt.Printf("    - Pocket: %s\n", poktURL)
+}
+
 func (l *Logger) RunProgressBar() {
 	fmt.Println("🔎 Bank Informer script is starting at", time.Now().Format("2006-01-02 15:04:05"))
 	fmt.Print("🔄 Fetching exchange rates for the following currencies: ", l.convertCurrencies, "\n")

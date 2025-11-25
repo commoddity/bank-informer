@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/commoddity/bank-informer/client"
+	"github.com/commoddity/bank-informer/config"
 )
 
 var erc20TokenConfig = map[string]func(*JsonRPCRequest, string) float64{
@@ -104,32 +105,42 @@ func (r *JsonRPCResponse) UnmarshalJSON(data []byte) error {
 }
 
 type Config struct {
-	PathApiUrl       string
-	PathApiKey       string
+	RpcApiKey        string
 	ETHWalletAddress string
 	HttpClient       *http.Client
 }
 
+const ethSubdomain = "eth"
+
 type Client struct {
-	url          string
-	pathAPIKey   string
 	config       Config
+	subdomain    string
+	url          string
+	rpcAPIKey    string
 	httpClient   *http.Client
 	progressChan chan string
 	mutex        *sync.Mutex
 	waitGroup    *sync.WaitGroup
 }
 
-func NewClient(config Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
+func NewClient(cfg Config, progressChan chan string, mutex *sync.Mutex, waitGroup *sync.WaitGroup) *Client {
+	url := fmt.Sprintf(config.RPCURLTemplate, ethSubdomain)
 	return &Client{
-		url:          config.PathApiUrl,
-		pathAPIKey:   config.PathApiKey,
-		config:       config,
-		httpClient:   config.HttpClient,
+		config: cfg,
+
+		subdomain:    ethSubdomain,
+		url:          url,
+		rpcAPIKey:    cfg.RpcApiKey,
+		httpClient:   cfg.HttpClient,
 		progressChan: progressChan,
 		mutex:        mutex,
 		waitGroup:    waitGroup,
 	}
+}
+
+// GetURL returns the URL being used for ETH RPC requests
+func (c *Client) GetURL() string {
+	return c.url
 }
 
 func ValidateETHWalletAddress(address string) error {
@@ -201,9 +212,10 @@ func (c *Client) executeBatchRequest(batchRequest []JsonRPCRequest) (JsonRPCBatc
 	var lastErr error
 
 	header := http.Header{
-		"Content-Type":      []string{"application/json"},
-		"Target-Service-Id": []string{"eth"},
-		"Authorization":     []string{c.pathAPIKey},
+		"Content-Type": []string{"application/json"},
+	}
+	if c.rpcAPIKey != "" {
+		header["Authorization"] = []string{c.rpcAPIKey}
 	}
 
 	jsonData, err := json.Marshal(batchRequest)

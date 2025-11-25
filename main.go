@@ -44,9 +44,6 @@ func main() {
 		PoktExchangeAmount:   config.PoktExchangeAmount,
 	}, persistence, progressChan, chanLength)
 
-	// Start the progress bar in a goroutine
-	go logger.RunProgressBar()
-
 	// Create a map to store balances
 	balances := make(map[string]float64)
 	for _, crypto := range config.CryptoValues {
@@ -60,8 +57,7 @@ func main() {
 	// Create ETH client
 	httpClient := client.New()
 	ethConfig := eth.Config{
-		PathApiUrl:       config.PathApiUrl,
-		PathApiKey:       config.PathApiKey,
+		RpcApiKey:        config.RpcApiKey,
 		HttpClient:       httpClient,
 		ETHWalletAddress: config.EthWalletAddress,
 	}
@@ -69,13 +65,18 @@ func main() {
 
 	// Create POKT client
 	poktConfig := pokt.Config{
-		PathApiUrl:         config.PathApiUrl,
-		PathApiKey:         config.PathApiKey,
+		RpcApiKey:          config.RpcApiKey,
 		POKTWalletAddress:  config.PoktWalletAddress,
 		HttpClient:         httpClient,
 		PoktExchangeAmount: config.PoktExchangeAmount,
 	}
 	poktClient := pokt.NewClient(poktConfig, progressChan, &mu, &wg)
+
+	// Log URLs before starting progress bar
+	logger.LogURLs(ethClient.GetURL(), poktClient.GetBaseURL())
+
+	// Start the progress bar in a goroutine
+	go logger.RunProgressBar()
 
 	// Create CMC client
 	cmcConfig := cmc.Config{
@@ -85,13 +86,13 @@ func main() {
 	}
 	cmcClient := cmc.NewClient(cmcConfig, progressChan, &mu, &wg)
 
-	// Retrieve and store ERC20 wallet balances through Grove Portal
+	// Retrieve and store ERC20 wallet balances through Pocket Network API
 	err = ethClient.GetETHWalletBalances(balances)
 	if err != nil {
 		panic(err)
 	}
 
-	// Retrieve and store POKT wallet balance through Grove Portal
+	// Retrieve and store POKT wallet balance through Pocket Network API
 	err = poktClient.GetWalletBalance(balances)
 	if err != nil {
 		panic(err)
