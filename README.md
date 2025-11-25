@@ -1,7 +1,7 @@
 
 <div align="center">
 <h1>💶 Bank Informer 💶</h1>
-<img src=".github/gopher.png" style="width: 700px;" alt="Gopher" title="Bank Informer">
+<img src=".github/gopher.png" style="width: 500px;" alt="Gopher" title="Bank Informer">
 </div>
 
 ---
