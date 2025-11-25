@@ -1,6 +1,10 @@
-# 🔐 Bank Informer
 
-![Gopher](.github/gopher.png)
+<div align="center">
+<h1>💶 Bank Informer 💶</h1>
+<img src=".github/gopher.png" style="width: 700px;" alt="Gopher" title="Bank Informer">
+</div>
+
+---
 
 Bank Informer is a Go-based application that retrieves and logs the balances of Ethereum Virtual Machine (EVM) and Pocket Network (POKT) wallets. It fetches the exchange rates for a list of currencies and calculates the fiat values for each balance. The balances, fiat values, and exchange rates are then logged.
 
